@@ -5,3 +5,13 @@ out/
 .env*
 node_modules/
 node_modules/
+node_modules/
+.next
+.out
+build/
+dist/
+.env*
+# Supabase environment variables are NEVER committed to Git
+.env.local
+*.log
+*.swp
