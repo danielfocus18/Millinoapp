@@ -179,7 +179,7 @@ export default function POSPage() {
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--surface-base)' }}>
       <header className="flex-shrink-0 flex items-center justify-between px-5 py-3" style={{ background: 'var(--surface-sidebar)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 flex items-center justify-center text-white font-black" style={{ background: 'var(--brand-orange)', borderRadius: 8 }}>M</div>
+          <div className="w-9 h-9 rounded-lg overflow-hidden bg-white flex-shrink-0"><img src="/logo.png" alt="Millino" style={{ width: "100%", height: "100%", objectFit: "contain" }} /></div>
           <div>
             <div className="text-white font-semibold text-sm">Millino Chops POS</div>
             <div style={{ color: 'var(--text-muted)', fontSize: '0.7rem' }}>{new Date().toLocaleDateString('en-GH', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
