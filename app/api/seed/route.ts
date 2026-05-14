@@ -3,89 +3,119 @@ import { createAdminClient } from '@/lib/supabase'
 
 const CATEGORY_NAMES = ['Meals', 'Pastries', 'Drinks']
 
-// Products keyed by category name
-const PRODUCTS_BY_CATEGORY: Record<string, { name: string; price: number; stock: number; is_available: boolean; sku: string }[]> = {
+const PRODUCTS_BY_CATEGORY: Record<string, { name: string; price: number; stock: number; is_available: boolean }[]> = {
   Meals: [
-    { name: 'Fried Rice (Reg)',                     price: 50,  stock: 99, is_available: true,  sku: 'ML-001' },
-    { name: 'Fried Rice (Small)',                   price: 35,  stock: 99, is_available: true,  sku: 'ML-002' },
-    { name: 'Jollof (Reg)',                         price: 50,  stock: 99, is_available: true,  sku: 'ML-003' },
-    { name: 'Jollof (Small)',                       price: 35,  stock: 99, is_available: true,  sku: 'ML-004' },
-    { name: 'Fries & Grilled Chicken',              price: 45,  stock: 99, is_available: true,  sku: 'ML-005' },
-    { name: 'Yam Chips & Grilled Chicken',          price: 40,  stock: 99, is_available: true,  sku: 'ML-006' },
-    { name: 'Assorted Jollof/Fried Rice',           price: 75,  stock: 99, is_available: true,  sku: 'ML-007' },
-    { name: 'Yam Chips Only',                       price: 20,  stock: 99, is_available: true,  sku: 'ML-008' },
-    { name: 'Fries Only',                           price: 30,  stock: 99, is_available: true,  sku: 'ML-009' },
-    { name: 'Boneless Chicken Only',                price: 60,  stock: 99, is_available: true,  sku: 'ML-010' },
-    { name: 'Jollof/Fried Rice & Boneless Chicken', price: 85,  stock: 99, is_available: true,  sku: 'ML-011' },
-    { name: 'Smokey Pepper Wings Only (14pcs)',      price: 100, stock: 0,  is_available: false, sku: 'ML-012' },
-    { name: 'Jollof/Fried Rice & Wings (5pcs)',      price: 65,  stock: 0,  is_available: false, sku: 'ML-013' },
+    { name: 'Fried Rice (Reg)',                     price: 50,  stock: 99, is_available: true  },
+    { name: 'Fried Rice (Small)',                   price: 35,  stock: 99, is_available: true  },
+    { name: 'Jollof (Reg)',                         price: 50,  stock: 99, is_available: true  },
+    { name: 'Jollof (Small)',                       price: 35,  stock: 99, is_available: true  },
+    { name: 'Fries & Grilled Chicken',              price: 45,  stock: 99, is_available: true  },
+    { name: 'Yam Chips & Grilled Chicken',          price: 40,  stock: 99, is_available: true  },
+    { name: 'Assorted Jollof/Fried Rice',           price: 75,  stock: 99, is_available: true  },
+    { name: 'Yam Chips Only',                       price: 20,  stock: 99, is_available: true  },
+    { name: 'Fries Only',                           price: 30,  stock: 99, is_available: true  },
+    { name: 'Boneless Chicken Only',                price: 60,  stock: 99, is_available: true  },
+    { name: 'Jollof/Fried Rice & Boneless Chicken', price: 85,  stock: 99, is_available: true  },
+    { name: 'Smokey Pepper Wings Only (14pcs)',      price: 100, stock: 0,  is_available: false },
+    { name: 'Jollof/Fried Rice & Wings (5pcs)',      price: 65,  stock: 0,  is_available: false },
   ],
   Pastries: [
-    { name: 'Chips',                 price: 8,  stock: 99, is_available: true,  sku: 'PT-001' },
-    { name: 'Rockies',               price: 8,  stock: 99, is_available: true,  sku: 'PT-002' },
-    { name: 'Spring Rolls (3pcs)',   price: 10, stock: 99, is_available: true,  sku: 'PT-003' },
-    { name: 'Spring Rolls (Frozen)', price: 30, stock: 20, is_available: true,  sku: 'PT-004' },
-    { name: 'Ring Donuts (5pcs)',    price: 12, stock: 50, is_available: true,  sku: 'PT-005' },
-    { name: 'Chin Chin (Achomo)',    price: 10, stock: 99, is_available: true,  sku: 'PT-006' },
-    { name: 'Meat Pie',             price: 15, stock: 50, is_available: true,  sku: 'PT-007' },
-    { name: 'Pizza Sandwich',        price: 30, stock: 30, is_available: true,  sku: 'PT-008' },
-    { name: 'CakeBread',             price: 65, stock: 0,  is_available: false, sku: 'PT-009' },
-    { name: 'Bread (Reg)',           price: 25, stock: 30, is_available: true,  sku: 'PT-010' },
-    { name: 'Small Chops Mix',       price: 30, stock: 30, is_available: true,  sku: 'PT-011' },
-    { name: 'PanCakes (2pcs)',       price: 5,  stock: 50, is_available: true,  sku: 'PT-012' },
+    { name: 'Chips',                  price: 8,  stock: 99, is_available: true  },
+    { name: 'Rockies',                price: 8,  stock: 99, is_available: true  },
+    { name: 'Spring Rolls (3pcs)',    price: 10, stock: 99, is_available: true  },
+    { name: 'Spring Rolls (Frozen)',  price: 30, stock: 20, is_available: true  },
+    { name: 'Ring Donuts (5pcs)',     price: 12, stock: 50, is_available: true  },
+    { name: 'Chin Chin (Achomo)',     price: 10, stock: 99, is_available: true  },
+    { name: 'Meat Pie',              price: 15, stock: 50, is_available: true  },
+    { name: 'Pizza Sandwich',         price: 30, stock: 30, is_available: true  },
+    { name: 'CakeBread',              price: 65, stock: 0,  is_available: false },
+    { name: 'Bread (Reg)',            price: 25, stock: 30, is_available: true  },
+    { name: 'Small Chops Mix',        price: 30, stock: 30, is_available: true  },
+    { name: 'PanCakes (2pcs)',        price: 5,  stock: 50, is_available: true  },
   ],
   Drinks: [
-    { name: 'Sobolo',               price: 12, stock: 99, is_available: true,  sku: 'DK-001' },
-    { name: 'Coke/Sprite',          price: 10, stock: 99, is_available: true,  sku: 'DK-002' },
-    { name: 'Pineapple Juice',      price: 20, stock: 0,  is_available: false, sku: 'DK-003' },
-    { name: 'Mix Fruit Blend Juice', price: 20, stock: 0,  is_available: false, sku: 'DK-004' },
+    { name: 'Sobolo',                price: 12, stock: 99, is_available: true  },
+    { name: 'Coke/Sprite',           price: 10, stock: 99, is_available: true  },
+    { name: 'Pineapple Juice',       price: 20, stock: 0,  is_available: false },
+    { name: 'Mix Fruit Blend Juice', price: 20, stock: 0,  is_available: false },
   ],
 }
 
 export async function POST() {
-  const supabase = createAdminClient()
+  const log: string[] = []
+  try {
+    const supabase = createAdminClient()
 
-  // 1. Check which categories already exist
-  const { data: existing } = await supabase.from('categories').select('id, name')
-  const existingNames = new Set((existing ?? []).map((c: { name: string }) => c.name))
+    // ── Step 1: fetch existing categories ──
+    const { data: existingCats, error: e1 } = await supabase.from('categories').select('id, name')
+    if (e1) return NextResponse.json({ step: 'fetch_categories', error: e1.message, log }, { status: 500 })
+    log.push(`Found ${existingCats?.length ?? 0} existing categories`)
 
-  // 2. Insert only missing categories
-  const toInsert = CATEGORY_NAMES.filter(n => !existingNames.has(n)).map(name => ({ name }))
-  if (toInsert.length > 0) {
-    const { error } = await supabase.from('categories').insert(toInsert)
-    if (error) return NextResponse.json({ error: `Categories: ${error.message}` }, { status: 500 })
+    const existingCatNames = new Set((existingCats ?? []).map((c: { name: string }) => c.name))
+
+    // ── Step 2: insert missing categories ──
+    const missingCats = CATEGORY_NAMES.filter(n => !existingCatNames.has(n))
+    if (missingCats.length > 0) {
+      const { error: e2 } = await supabase.from('categories').insert(missingCats.map(name => ({ name })))
+      if (e2) return NextResponse.json({ step: 'insert_categories', error: e2.message, log }, { status: 500 })
+      log.push(`Inserted categories: ${missingCats.join(', ')}`)
+    } else {
+      log.push('All categories already exist')
+    }
+
+    // ── Step 3: fetch all categories with their UUIDs ──
+    const { data: allCats, error: e3 } = await supabase.from('categories').select('id, name')
+    if (e3) return NextResponse.json({ step: 'refetch_categories', error: e3.message, log }, { status: 500 })
+
+    const catMap: Record<string, string> = {}
+    for (const c of allCats ?? []) catMap[c.name] = c.id
+    log.push(`Category map: ${JSON.stringify(catMap)}`)
+
+    // ── Step 4: fetch existing products by name ──
+    const { data: existingProds, error: e4 } = await supabase.from('products').select('name')
+    if (e4) return NextResponse.json({ step: 'fetch_products', error: e4.message, log }, { status: 500 })
+    const existingNames = new Set((existingProds ?? []).map((p: { name: string }) => p.name))
+    log.push(`Found ${existingProds?.length ?? 0} existing products`)
+
+    // ── Step 5: build and insert new products ──
+    const toInsert = Object.entries(PRODUCTS_BY_CATEGORY).flatMap(([catName, prods]) =>
+      prods
+        .filter(p => !existingNames.has(p.name))
+        .map(p => ({
+          name: p.name,
+          price: p.price,
+          stock: p.stock,
+          is_available: p.is_available,
+          category_id: catMap[catName] ?? null,
+        }))
+    )
+    log.push(`Products to insert: ${toInsert.length}`)
+
+    if (toInsert.length > 0) {
+      // Insert one by one so a single failure is identifiable
+      const errors: string[] = []
+      for (const product of toInsert) {
+        const { error } = await supabase.from('products').insert(product)
+        if (error) errors.push(`${product.name}: ${error.message}`)
+      }
+      if (errors.length > 0) {
+        return NextResponse.json({ step: 'insert_products', errors, log }, { status: 500 })
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      log,
+      summary: {
+        categories: allCats?.length,
+        productsInserted: toInsert.length,
+        productsSkipped: (existingProds?.length ?? 0),
+      },
+    })
+
+  } catch (err) {
+    return NextResponse.json({ step: 'unexpected', error: String(err), log }, { status: 500 })
   }
-
-  // 3. Fetch all categories (existing + newly inserted) to get their UUIDs
-  const { data: allCats, error: fetchErr } = await supabase.from('categories').select('id, name')
-  if (fetchErr) return NextResponse.json({ error: `Fetch categories: ${fetchErr.message}` }, { status: 500 })
-
-  const catMap: Record<string, string> = {}
-  for (const c of allCats ?? []) catMap[c.name] = c.id
-
-  // 4. Build product rows with correct UUID category_ids
-  const productRows = Object.entries(PRODUCTS_BY_CATEGORY).flatMap(([catName, prods]) =>
-    prods.map(p => ({ ...p, category_id: catMap[catName] ?? null }))
-  )
-
-  // 5. Check existing products by SKU to avoid duplicates
-  const { data: existingProds } = await supabase.from('products').select('sku')
-  const existingSkus = new Set((existingProds ?? []).map((p: { sku: string }) => p.sku))
-  const newProducts = productRows.filter(p => !existingSkus.has(p.sku))
-
-  let inserted = 0
-  if (newProducts.length > 0) {
-    const { error: prodErr } = await supabase.from('products').insert(newProducts)
-    if (prodErr) return NextResponse.json({ error: `Products: ${prodErr.message}` }, { status: 500 })
-    inserted = newProducts.length
-  }
-
-  return NextResponse.json({
-    success: true,
-    categories: { total: allCats?.length, inserted: toInsert.length },
-    products: { total: productRows.length, inserted, skipped: productRows.length - inserted },
-    message: inserted > 0 ? `Seeded ${inserted} products across ${allCats?.length} categories` : 'Already seeded — no duplicates inserted',
-  })
 }
 
 export async function GET() {
