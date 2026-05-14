@@ -1,170 +1,183 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-interface OrderItem {
-  id: string
-  product_id: number
-  quantity: number
-  unit_price: number
-  products: { name: string } | null
-}
-interface Order {
-  id: string
-  total: number
-  status: string
-  created_at: string
-  cashier_id?: string
-  users?: { name: string } | null
-  order_items?: OrderItem[]
+interface OrderItem { id: string; product_id: number; quantity: number; unit_price: number; pricing_type?: string; discount_percent?: number; line_total?: number; products: { name: string } | null }
+interface Order { id: string; total: number; net_amount?: number; discount_amount?: number; gross_amount?: number; status: string; created_at: string; payment_method?: string; users?: { name: string } | null; order_items?: OrderItem[] }
+
+type Filter = 'today' | 'week' | 'month' | 'all'
+
+const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
+  completed: { bg: '#F0FDF4', color: '#15803D' },
+  pending:   { bg: '#FFFBEB', color: '#92400E' },
+  cancelled: { bg: '#FEF2F2', color: '#991B1B' },
 }
 
+const PAYMENT_ICONS: Record<string, string> = { cash: '💵', momo: '📱', card: '💳' }
+
 export default function OrdersPage() {
-  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'today' | 'week' | 'month' | 'all'>('today')
+  const [filter, setFilter] = useState<Filter>('today')
 
-  async function load() {
+  async function load(f: Filter = filter) {
     setLoading(true)
     let query = supabase
       .from('orders')
       .select('*, users(name), order_items(*, products(name))')
       .order('created_at', { ascending: false })
-
     const now = new Date()
-    if (filter === 'today') {
-      const start = new Date(now); start.setHours(0,0,0,0)
-      query = query.gte('created_at', start.toISOString())
-    } else if (filter === 'week') {
-      const start = new Date(now); start.setDate(now.getDate() - 7)
-      query = query.gte('created_at', start.toISOString())
-    } else if (filter === 'month') {
-      const start = new Date(now); start.setDate(1); start.setHours(0,0,0,0)
-      query = query.gte('created_at', start.toISOString())
-    }
-
+    if (f === 'today') { const s = new Date(now); s.setHours(0,0,0,0); query = query.gte('created_at', s.toISOString()) }
+    else if (f === 'week') { const s = new Date(now); s.setDate(now.getDate()-7); query = query.gte('created_at', s.toISOString()) }
+    else if (f === 'month') { const s = new Date(now); s.setDate(1); s.setHours(0,0,0,0); query = query.gte('created_at', s.toISOString()) }
     const { data } = await query
     setOrders((data as Order[]) ?? [])
     setLoading(false)
   }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) { router.push('/login'); return }
-      const { data: profile } = await supabase.from('users').select('role').eq('id', session.user.id).single()
-      if (!profile || profile.role !== 'manager') { router.push('/pos'); return }
-      load()
-    })
-  }, [router])
-
-  useEffect(() => { load() }, [filter])
+  useEffect(() => { load() }, [])
+  useEffect(() => { load(filter) }, [filter])
 
   async function updateStatus(id: string, status: string) {
     await supabase.from('orders').update({ status }).eq('id', id)
     load()
   }
 
-  const revenue = orders.filter(o => o.status === 'completed').reduce((s, o) => s + Number(o.total), 0)
+  const completed = orders.filter(o => o.status === 'completed')
+  const revenue = completed.reduce((s, o) => s + Number(o.net_amount ?? o.total), 0)
+  const discountGiven = completed.reduce((s, o) => s + Number(o.discount_amount ?? 0), 0)
 
-  const statusColor: Record<string, string> = {
-    completed: 'bg-green-100 text-green-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    cancelled: 'bg-red-100 text-red-700',
-  }
+  const filters: { value: Filter; label: string }[] = [
+    { value: 'today', label: 'Today' }, { value: 'week', label: 'Week' },
+    { value: 'month', label: 'Month' }, { value: 'all', label: 'All' },
+  ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-700 text-white px-6 py-4 flex items-center gap-3 shadow">
-        <button onClick={() => router.push('/admin')} className="text-blue-200 hover:text-white">← Admin</button>
-        <h1 className="font-bold text-lg">Orders</h1>
-      </header>
+    <div className="p-6 max-w-5xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Orders</h1>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Sales history and transaction details</p>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex gap-2">
-            {(['today', 'week', 'month', 'all'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium capitalize transition ${
-                  filter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-50'
-                }`}>{f}</button>
-            ))}
-          </div>
-          <div className="text-sm font-semibold text-green-600">Revenue: GH₵ {revenue.toFixed(2)}</div>
+      {/* Filter row */}
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
+        <div className="flex gap-1.5">
+          {filters.map(f => (
+            <button key={f.value} onClick={() => setFilter(f.value)} className="btn btn-sm"
+              style={{ background: filter === f.value ? 'var(--brand-orange)' : 'transparent', color: filter === f.value ? '#fff' : 'var(--text-secondary)', border: `1.5px solid ${filter === f.value ? 'var(--brand-orange)' : 'var(--border)'}` }}>
+              {f.label}
+            </button>
+          ))}
         </div>
+        <div className="flex gap-3 ml-auto">
+          <div className="card px-3 py-2 text-xs text-center">
+            <div className="font-black text-base" style={{ color: 'var(--success)' }}>GH₵{revenue.toFixed(2)}</div>
+            <div style={{ color: 'var(--text-muted)' }}>Net Revenue</div>
+          </div>
+          {discountGiven > 0 && (
+            <div className="card px-3 py-2 text-xs text-center">
+              <div className="font-black text-base" style={{ color: 'var(--brand-amber)' }}>GH₵{discountGiven.toFixed(2)}</div>
+              <div style={{ color: 'var(--text-muted)' }}>Discounted</div>
+            </div>
+          )}
+          <div className="card px-3 py-2 text-xs text-center">
+            <div className="font-black text-base" style={{ color: 'var(--text-primary)' }}>{completed.length}</div>
+            <div style={{ color: 'var(--text-muted)' }}>Orders</div>
+          </div>
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="text-center py-16 text-gray-400">Loading…</div>
-        ) : orders.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">No orders found</div>
-        ) : (
-          <div className="space-y-3">
-            {orders.map(order => (
-              <div key={order.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div
-                  className="flex items-center px-5 py-4 cursor-pointer hover:bg-gray-50"
-                  onClick={() => setExpanded(expanded === order.id ? null : order.id)}
+      {/* Orders list */}
+      {loading ? (
+        <div className="text-center py-16" style={{ color: 'var(--text-muted)' }}>Loading…</div>
+      ) : orders.length === 0 ? (
+        <div className="card text-center py-16" style={{ color: 'var(--text-muted)' }}>No orders found for this period</div>
+      ) : (
+        <div className="space-y-2">
+          {orders.map(order => {
+            const net = Number(order.net_amount ?? order.total)
+            const disc = Number(order.discount_amount ?? 0)
+            const st = STATUS_STYLE[order.status] ?? STATUS_STYLE.pending
+            const isOpen = expanded === order.id
+            return (
+              <div key={order.id} className="card overflow-hidden">
+                <button
+                  className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                  onClick={() => setExpanded(isOpen ? null : order.id)}
+                  style={{ background: isOpen ? 'var(--surface-base)' : undefined }}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-gray-500">#{order.id.slice(-8).toUpperCase()}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[order.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                        {order.status}
+                  {/* Order ID + time */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold" style={{ color: 'var(--text-muted)' }}>
+                        #{order.id.slice(-8).toUpperCase()}
                       </span>
+                      <span className="badge" style={{ background: st.bg, color: st.color }}>{order.status}</span>
+                      {order.payment_method && (
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          {PAYMENT_ICONS[order.payment_method] ?? '💰'} {order.payment_method.toUpperCase()}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
+                    <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                       {new Date(order.created_at).toLocaleString('en-GH', { dateStyle: 'medium', timeStyle: 'short' })}
                       {order.users?.name && ` · ${order.users.name}`}
                     </div>
                   </div>
-                  <div className="font-bold text-gray-900 mr-4">GH₵ {Number(order.total).toFixed(2)}</div>
-                  <span className="text-gray-400 text-sm">{expanded === order.id ? '▲' : '▼'}</span>
-                </div>
 
-                {expanded === order.id && (
-                  <div className="border-t px-5 py-4">
-                    <table className="w-full text-sm mb-4">
-                      <thead>
-                        <tr className="text-gray-500 text-xs uppercase">
-                          <th className="text-left pb-2">Item</th>
-                          <th className="text-right pb-2">Qty</th>
-                          <th className="text-right pb-2">Unit</th>
-                          <th className="text-right pb-2">Subtotal</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {order.order_items?.map(item => (
-                          <tr key={item.id} className="border-t">
-                            <td className="py-2">{item.products?.name ?? 'Unknown'}</td>
-                            <td className="py-2 text-right">{item.quantity}</td>
-                            <td className="py-2 text-right">GH₵ {Number(item.unit_price).toFixed(2)}</td>
-                            <td className="py-2 text-right font-medium">GH₵ {(item.quantity * Number(item.unit_price)).toFixed(2)}</td>
+                  {/* Amounts */}
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-black text-base" style={{ color: 'var(--brand-orange)' }}>GH₵{net.toFixed(2)}</div>
+                    {disc > 0 && <div className="text-xs" style={{ color: 'var(--brand-amber)' }}>-GH₵{disc.toFixed(2)} disc</div>}
+                  </div>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {isOpen && (
+                  <div style={{ borderTop: '1px solid var(--border)' }}>
+                    <div className="px-5 py-4">
+                      <table className="w-full text-sm mb-4">
+                        <thead>
+                          <tr>
+                            {['Item', 'Qty', 'Unit Price', 'Type', 'Line Total'].map(h => (
+                              <th key={h} className="text-left pb-2 text-xs font-bold uppercase" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {order.order_items?.map(item => (
+                            <tr key={item.id} style={{ borderTop: '1px solid var(--border)' }}>
+                              <td className="py-2 font-medium">{item.products?.name ?? `#${item.product_id}`}</td>
+                              <td className="py-2" style={{ color: 'var(--text-secondary)' }}>{item.quantity}</td>
+                              <td className="py-2" style={{ color: 'var(--text-secondary)' }}>GH₵{Number(item.unit_price).toFixed(2)}</td>
+                              <td className="py-2">
+                                {(!item.pricing_type || item.pricing_type === 'normal') && <span className="badge badge-gray">Normal</span>}
+                                {item.pricing_type === 'discount' && <span className="badge badge-yellow">{Number(item.discount_percent ?? 0).toFixed(0)}% off</span>}
+                                {item.pricing_type === 'free' && <span className="badge badge-green">Free</span>}
+                              </td>
+                              <td className="py-2 font-bold" style={{ color: 'var(--brand-orange)' }}>
+                                GH₵{Number(item.line_total ?? item.unit_price * item.quantity).toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
 
-                    {order.status === 'pending' && (
-                      <div className="flex gap-2">
-                        <button onClick={() => updateStatus(order.id, 'completed')}
-                          className="bg-green-600 text-white text-sm px-4 py-1.5 rounded-lg hover:bg-green-700 transition">
-                          Mark Completed
-                        </button>
-                        <button onClick={() => updateStatus(order.id, 'cancelled')}
-                          className="bg-red-100 text-red-600 text-sm px-4 py-1.5 rounded-lg hover:bg-red-200 transition">
-                          Cancel
-                        </button>
-                      </div>
-                    )}
+                      {order.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <button onClick={() => updateStatus(order.id, 'completed')} className="btn btn-success btn-sm">✓ Mark Completed</button>
+                          <button onClick={() => updateStatus(order.id, 'cancelled')} className="btn btn-sm" style={{ background: '#FEF2F2', color: 'var(--brand-red)', border: '1.5px solid #FECACA' }}>✕ Cancel Order</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-      </main>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

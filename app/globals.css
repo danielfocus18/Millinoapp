@@ -1,5 +1,149 @@
 @import "tailwindcss";
 
-* {
-  box-sizing: border-box;
+/* ─── Millino Chops Design Tokens ─── */
+:root {
+  /* Brand: Warm Orange + Dark Red + Charcoal */
+  --brand-orange:     #EA580C;   /* primary */
+  --brand-orange-lt:  #FED7AA;   /* light tint */
+  --brand-orange-dk:  #C2410C;   /* dark shade */
+  --brand-red:        #B91C1C;   /* accent/danger */
+  --brand-amber:      #D97706;   /* warm highlight */
+  --brand-cream:      #FEF3C7;   /* warm background */
+
+  --surface-base:     #FAFAF9;   /* page bg */
+  --surface-card:     #FFFFFF;
+  --surface-sidebar:  #1C1917;   /* charcoal sidebar */
+  --surface-sidebar-hover: #292524;
+
+  --text-primary:     #1C1917;
+  --text-secondary:   #78716C;
+  --text-muted:       #A8A29E;
+  --text-on-dark:     #FAFAF9;
+  --text-on-orange:   #FFFFFF;
+
+  --border:           #E7E5E4;
+  --border-strong:    #D6D3D1;
+
+  --success:          #16A34A;
+  --warning:          #D97706;
+  --danger:           #DC2626;
+  --info:             #0284C7;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow:    0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.10), 0 4px 6px rgba(0,0,0,0.05);
+
+  --radius-sm: 6px;
+  --radius:    10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; }
+
+body {
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ─── Utility classes used across pages ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  outline: none;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary   { background: var(--brand-orange); color: #fff; }
+.btn-primary:hover:not(:disabled)  { background: var(--brand-orange-dk); }
+.btn-danger    { background: var(--brand-red); color: #fff; }
+.btn-danger:hover:not(:disabled)   { background: #991B1B; }
+.btn-ghost     { background: transparent; color: var(--text-secondary); }
+.btn-ghost:hover:not(:disabled)    { background: var(--border); }
+.btn-outline   { background: transparent; color: var(--brand-orange); border: 1.5px solid var(--brand-orange); }
+.btn-outline:hover:not(:disabled)  { background: #FFF7ED; }
+.btn-success   { background: var(--success); color: #fff; }
+.btn-success:hover:not(:disabled)  { background: #15803D; }
+.btn-lg { padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: var(--radius); }
+.btn-sm { padding: 0.3125rem 0.75rem; font-size: 0.8125rem; }
+.btn-xl { padding: 1rem 2rem; font-size: 1.0625rem; border-radius: var(--radius-lg); }
+
+.input {
+  width: 100%;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  background: white;
+  transition: border-color 0.15s;
+  outline: none;
+}
+.input:focus { border-color: var(--brand-orange); box-shadow: 0 0 0 3px rgba(234,88,12,0.10); }
+.input::placeholder { color: var(--text-muted); }
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.card {
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.badge-orange  { background: #FFF7ED; color: var(--brand-orange-dk); }
+.badge-red     { background: #FEF2F2; color: var(--brand-red); }
+.badge-green   { background: #F0FDF4; color: #15803D; }
+.badge-yellow  { background: #FFFBEB; color: #92400E; }
+.badge-gray    { background: #F5F5F4; color: var(--text-secondary); }
+
+/* Scrollbars */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Print styles for receipt */
+@media print {
+  body * { visibility: hidden !important; }
+  #receipt-print, #receipt-print * { visibility: visible !important; }
+  #receipt-print {
+    position: fixed !important;
+    left: 0; top: 0;
+    width: 80mm;
+    font-family: 'Courier New', monospace !important;
+  }
 }
