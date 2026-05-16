@@ -45,8 +45,8 @@ export default function POSPage() {
 
   const loadData = useCallback(async () => {
     const [{ data: prods }, { data: cats }] = await Promise.all([
-      supabase.from('products').select('*').gt('stock', -1).order('name'),
-      supabase.from('categories').select('*').order('name'),
+      fetch('/api/products').then(r => r.json()).then(d => ({ data: d.products ?? [] })),
+      fetch('/api/categories').then(r => r.json()).then(d => ({ data: d.categories ?? [] })),
     ])
     setProducts(prods ?? [])
     setCategories(cats ?? [])
