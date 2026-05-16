@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { getProfile } from '@/lib/getProfile'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -12,10 +13,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/login'); return }
-      const { data } = await supabase.from('users').select('name, role').eq('id', session.user.id).single()
-      // Only managers can access admin
-      if (!data || data.role !== 'manager') { router.push('/pos'); return }
-      setUserName(data.name)
+
+      // Use server API to bypass RLS
+      const profile = await getProfile(session.user.id)
+
+      if (!profile || profile.role !== 'manager') {
+        router.push('/pos')
+        return
+      }
+      setUserName(profile.name)
       setReady(true)
     })
   }, [router])

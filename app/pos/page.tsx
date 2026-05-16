@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart, type PricingType } from '@/store/cart'
+import { getProfile } from '@/lib/getProfile'
 import type { User } from '@supabase/supabase-js'
 
 interface Product { id: string; name: string; price: number; stock: number; sku?: string; category_id?: string }
@@ -56,7 +57,7 @@ export default function POSPage() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/login'); return }
       setUser(session.user)
-      const { data } = await supabase.from('users').select('role, name').eq('id', session.user.id).single()
+      const data = await getProfile(session.user.id)
       setProfile(data)
       loadData()
     })

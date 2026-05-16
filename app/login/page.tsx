@@ -9,49 +9,41 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true); setError(''); setInfo('')
+    setLoading(true); setError('')
 
-    // 1. Authenticate
+    // 1. Authenticate with Supabase Auth
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email, password })
     if (authErr) { setError(authErr.message); setLoading(false); return }
 
-    const uid = authData.user.id
-    setInfo('Authenticated ✓ — checking role…')
+    // 2. Fetch profile via server API (bypasses RLS using service role key)
+    const res = await fetch(`/api/users?id=${authData.user.id}`)
+    const { profile } = await res.json()
 
-    // 2. Look up profile in public.users
-    const { data: profile, error: profileErr } = await supabase
-      .from('users')
-      .select('role, name')
-      .eq('id', uid)
-      .single()
-
-    if (profileErr || !profile) {
-      // Profile row is missing — show helpful message with the UUID
-      setInfo('')
-      setError(
-        `Login succeeded but no profile found for your account.\n\n` +
-        `Your Auth User ID is:\n${uid}\n\n` +
-        `Run this in Supabase SQL Editor:\n` +
-        `INSERT INTO public.users (id, name, role)\n` +
-        `VALUES ('${uid}', '${email}', 'manager')\n` +
-        `ON CONFLICT (id) DO UPDATE SET role = 'manager';`
-      )
+    if (!profile) {
+      // Auto-create a manager profile for this user via the setup API
+      const fix = await fetch('/api/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: authData.user.id, email, role: 'manager' }),
+      })
+      const fixData = await fix.json()
+      if (fixData.success) {
+        // Profile created — route as manager
+        router.push('/admin')
+        return
+      }
+      setError(`No profile found and auto-fix failed: ${fixData.error}`)
       setLoading(false)
       return
     }
 
     // 3. Route by role
-    setInfo(`Welcome ${profile.name} (${profile.role}) — redirecting…`)
-    if (profile.role === 'manager') {
-      router.push('/admin')
-    } else {
-      router.push('/pos')
-    }
+    if (profile.role === 'manager') router.push('/admin')
+    else router.push('/pos')
   }
 
   return (
@@ -94,7 +86,6 @@ export default function LoginPage() {
       {/* Right form panel */}
       <div className="flex-1 flex items-center justify-center px-6 py-12">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <div className="w-12 h-12 rounded-xl overflow-hidden bg-white shadow">
               <Image src="/logo.png" alt="Millino Chops" width={48} height={48} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
@@ -117,14 +108,8 @@ export default function LoginPage() {
                 className="input" placeholder="••••••••" required />
             </div>
 
-            {info && (
-              <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#F0FDF4', color: '#15803D', border: '1px solid #BBF7D0' }}>
-                {info}
-              </div>
-            )}
-
             {error && (
-              <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#FEF2F2', color: 'var(--brand-red)', border: '1px solid #FECACA', whiteSpace: 'pre-wrap', fontFamily: error.includes('INSERT') ? 'monospace' : 'inherit', fontSize: error.includes('INSERT') ? '0.75rem' : '0.875rem' }}>
+              <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#FEF2F2', color: 'var(--brand-red)', border: '1px solid #FECACA' }}>
                 {error}
               </div>
             )}
