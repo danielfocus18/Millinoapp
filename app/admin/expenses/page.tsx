@@ -1,9 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
 interface Expense { id: string; description: string; amount: number; created_at: string }
-
 type Filter = 'today' | 'week' | 'month' | 'all'
 
 export default function ExpensesPage() {
@@ -12,9 +11,9 @@ export default function ExpensesPage() {
   const [userId, setUserId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [filter, setFilter] = useState<Filter>('today')
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [msg, setMsg] = useState('')
 
-  async function load(f: Filter = filter) {
+  const load = useCallback(async (f: Filter = filter) => {
     let query = supabase.from('expenses').select('*').order('created_at', { ascending: false })
     const now = new Date()
     if (f === 'today') { const s = new Date(now); s.setHours(0,0,0,0); query = query.gte('created_at', s.toISOString()) }
@@ -22,10 +21,12 @@ export default function ExpensesPage() {
     else if (f === 'month') { const s = new Date(now); s.setDate(1); s.setHours(0,0,0,0); query = query.gte('created_at', s.toISOString()) }
     const { data } = await query
     setExpenses(data ?? [])
-  }
+  }, [filter])
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => { if (session) setUserId(session.user.id) })
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setUserId(session.user.id)
+    })
     load()
   }, [])
 
@@ -33,29 +34,35 @@ export default function ExpensesPage() {
 
   async function handleAdd() {
     if (!form.description.trim() || !form.amount) return
-    setSaving(true)
-    await supabase.from('expenses').insert({ description: form.description.trim(), amount: parseFloat(form.amount), recorded_by: userId })
-    setForm({ description: '', amount: '' }); setSaving(false); load()
+    setSaving(true); setMsg('')
+    const { error } = await supabase.from('expenses').insert({
+      description: form.description.trim(),
+      amount: parseFloat(form.amount),
+      recorded_by: userId,
+    })
+    if (error) setMsg('Error: ' + error.message)
+    else { setMsg('✓ Expense recorded'); setForm({ description: '', amount: '' }); load() }
+    setSaving(false)
+    setTimeout(() => setMsg(''), 3000)
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this expense record?')) return
-    setDeleting(id)
     await supabase.from('expenses').delete().eq('id', id)
-    setDeleting(null); load()
+    load()
   }
 
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0)
   const filters: { value: Filter; label: string }[] = [
-    { value: 'today', label: 'Today' }, { value: 'week', label: 'Week' },
-    { value: 'month', label: 'Month' }, { value: 'all', label: 'All' },
+    { value: 'today', label: 'Today' }, { value: 'week', label: 'This Week' },
+    { value: 'month', label: 'This Month' }, { value: 'all', label: 'All Time' },
   ]
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Expenses</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Track business costs and outgoings</p>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Track all business costs and outgoings</p>
       </div>
 
       {/* Add form */}
@@ -64,24 +71,28 @@ export default function ExpensesPage() {
         <div className="flex gap-3 flex-wrap">
           <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            placeholder="Description (e.g. Gas, Supplies)" className="input flex-1 min-w-48" autoFocus />
+            placeholder="e.g. Gas, Cooking oil, Staff meal" className="input flex-1 min-w-48" autoFocus />
           <div className="flex gap-2">
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>GH₵</span>
-              <input type="number" min="0" step="0.01" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })}
+              <input type="number" min="0" step="0.01" value={form.amount}
+                onChange={e => setForm({ ...form, amount: e.target.value })}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                placeholder="0.00" className="input" style={{ width: 130, paddingLeft: '2.5rem' }} />
+                placeholder="0.00" className="input" style={{ width: 130, paddingLeft: '2.75rem' }} />
             </div>
             <button onClick={handleAdd} disabled={saving || !form.description.trim() || !form.amount} className="btn btn-danger">
               {saving ? '…' : 'Record'}
             </button>
           </div>
         </div>
+        {msg && (
+          <div className="mt-3 text-sm font-medium" style={{ color: msg.startsWith('✓') ? 'var(--success)' : 'var(--danger)' }}>{msg}</div>
+        )}
       </div>
 
-      {/* Filter + summary */}
+      {/* Filter + total */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           {filters.map(f => (
             <button key={f.value} onClick={() => setFilter(f.value)} className="btn btn-sm"
               style={{ background: filter === f.value ? 'var(--brand-red)' : 'transparent', color: filter === f.value ? '#fff' : 'var(--text-secondary)', border: `1.5px solid ${filter === f.value ? 'var(--brand-red)' : 'var(--border)'}` }}>
@@ -98,7 +109,9 @@ export default function ExpensesPage() {
       {/* List */}
       <div className="card overflow-hidden">
         {expenses.length === 0 ? (
-          <div className="text-center py-12" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No expenses recorded for this period</div>
+          <div className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
+            No expenses recorded for this period
+          </div>
         ) : (
           <ul>
             {expenses.map((e, i) => (
@@ -111,11 +124,12 @@ export default function ExpensesPage() {
                   </div>
                 </div>
                 <span className="font-black text-base" style={{ color: 'var(--brand-red)' }}>GH₵{Number(e.amount).toFixed(2)}</span>
-                <button onClick={() => handleDelete(e.id)} disabled={deleting === e.id}
-                  className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}
+                <button onClick={() => handleDelete(e.id)}
+                  className="text-sm font-semibold transition-colors"
+                  style={{ color: 'var(--text-muted)' }}
                   onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.color = 'var(--danger)'}
                   onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}>
-                  {deleting === e.id ? '…' : 'Del'}
+                  Del
                 </button>
               </li>
             ))}
