@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 
+// Exact columns from original Supabase schema:
+// products: id(uuid), sku(text NOT NULL UNIQUE), name(text NOT NULL),
+//           description(text), price(numeric), stock(integer), category_id(uuid), image_url(text)
+
 const CATEGORY_NAMES = ['Meals', 'Pastries', 'Drinks']
 
-const PRODUCTS_BY_CATEGORY: Record<string, { name: string; price: number; stock: number; sku: string }[]> = {
+const PRODUCTS_BY_CATEGORY: Record<string, { sku: string; name: string; price: number; stock: number }[]> = {
   Meals: [
     { sku: 'ML-001', name: 'Fried Rice (Reg)',                     price: 50,  stock: 99 },
     { sku: 'ML-002', name: 'Fried Rice (Small)',                   price: 35,  stock: 99 },
@@ -42,63 +46,47 @@ const PRODUCTS_BY_CATEGORY: Record<string, { name: string; price: number; stock:
 }
 
 export async function POST() {
-  const log: string[] = []
-  try {
-    const supabase = createAdminClient()
+  const supabase = createAdminClient()
 
-    // Step 1: ensure categories exist
-    const { data: existingCats } = await supabase.from('categories').select('id, name')
-    const existingCatNames = new Set((existingCats ?? []).map((c: { name: string }) => c.name))
-    const missingCats = CATEGORY_NAMES.filter(n => !existingCatNames.has(n))
-    if (missingCats.length > 0) {
-      const { error } = await supabase.from('categories').insert(missingCats.map(name => ({ name })))
-      if (error) return NextResponse.json({ step: 'insert_categories', error: error.message }, { status: 500 })
+  // 1. Upsert categories by name (safe repeated runs)
+  for (const name of CATEGORY_NAMES) {
+    const { data: existing } = await supabase.from('categories').select('id').eq('name', name).single()
+    if (!existing) {
+      const { error } = await supabase.from('categories').insert({ name })
+      if (error) return NextResponse.json({ error: `Category "${name}": ${error.message}` }, { status: 500 })
     }
-    log.push(`Categories ready`)
-
-    // Step 2: get UUID map
-    const { data: allCats } = await supabase.from('categories').select('id, name')
-    const catMap: Record<string, string> = {}
-    for (const c of allCats ?? []) catMap[c.name] = c.id
-
-    // Step 3: skip existing SKUs
-    const { data: existingProds } = await supabase.from('products').select('sku')
-    const existingSkus = new Set((existingProds ?? []).map((p: { sku: string }) => p.sku))
-    log.push(`Existing products: ${existingProds?.length ?? 0}`)
-
-    // Step 4: insert products with SKU
-    const errors: string[] = []
-    let inserted = 0
-
-    for (const [catName, prods] of Object.entries(PRODUCTS_BY_CATEGORY)) {
-      for (const p of prods) {
-        if (existingSkus.has(p.sku)) continue
-        const { error } = await supabase.from('products').insert({
-          sku: p.sku,
-          name: p.name,
-          price: p.price,
-          stock: p.stock,
-          category_id: catMap[catName] ?? null,
-        })
-        if (error) errors.push(`${p.name}: ${error.message}`)
-        else inserted++
-      }
-    }
-
-    if (errors.length > 0) {
-      return NextResponse.json({ step: 'insert_products', errors, log, inserted }, { status: 500 })
-    }
-
-    return NextResponse.json({
-      success: true,
-      summary: { categories: allCats?.length, inserted, skipped: existingProds?.length ?? 0 },
-    })
-
-  } catch (err) {
-    return NextResponse.json({ step: 'unexpected', error: String(err), log }, { status: 500 })
   }
+
+  // 2. Fetch UUID map
+  const { data: allCats } = await supabase.from('categories').select('id, name')
+  const catMap: Record<string, string> = {}
+  for (const c of allCats ?? []) catMap[c.name] = c.id
+
+  // 3. Insert products - skip existing SKUs, only use guaranteed columns
+  const results: string[] = []
+  for (const [catName, prods] of Object.entries(PRODUCTS_BY_CATEGORY)) {
+    for (const p of prods) {
+      const { data: exists } = await supabase.from('products').select('id').eq('sku', p.sku).single()
+      if (exists) { results.push(`SKIP ${p.sku}`); continue }
+
+      const { error } = await supabase.from('products').insert({
+        sku: p.sku,
+        name: p.name,
+        price: p.price,
+        stock: p.stock,
+        category_id: catMap[catName] ?? null,
+      })
+      if (error) return NextResponse.json({ error: `Product "${p.name}" (${p.sku}): ${error.message}` }, { status: 500 })
+      results.push(`OK   ${p.sku} ${p.name}`)
+    }
+  }
+
+  const inserted = results.filter(r => r.startsWith('OK')).length
+  const skipped  = results.filter(r => r.startsWith('SKIP')).length
+
+  return NextResponse.json({ success: true, inserted, skipped, detail: results })
 }
 
 export async function GET() {
-  return NextResponse.json({ info: 'POST to seed Millino Chops data' })
+  return NextResponse.json({ info: 'POST to this endpoint to seed Millino Chops data' })
 }

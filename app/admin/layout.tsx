@@ -13,19 +13,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.push('/login'); return }
       const { data } = await supabase.from('users').select('name, role').eq('id', session.user.id).single()
+      // Only managers can access admin
       if (!data || data.role !== 'manager') { router.push('/pos'); return }
       setUserName(data.name)
       setReady(true)
     })
   }, [router])
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--surface-base)' }}>
-        <div style={{ color: 'var(--text-muted)' }}>Loading…</div>
-      </div>
-    )
-  }
+  if (!ready) return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--surface-base)' }}>
+      <div style={{ color: 'var(--text-muted)' }}>Verifying access…</div>
+    </div>
+  )
 
   return (
     <div className="flex min-h-screen">
