@@ -3,81 +3,81 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const navItems = [
-  { href: '/pos',              label: 'POS Terminal',  icon: '🛒' },
-  { href: '/admin',            label: 'Dashboard',     icon: '📊' },
-  { href: '/admin/orders',     label: 'Orders',        icon: '🧾' },
-  { href: '/admin/products',   label: 'Products',      icon: '📦' },
-  { href: '/admin/categories', label: 'Categories',    icon: '🏷️' },
-  { href: '/admin/expenses',   label: 'Expenses',      icon: '💸' },
-  { href: '/admin/reports',    label: 'Reports',       icon: '📈' },
+const NAV = [
+  { href: '/admin',             icon: '📊', label: 'Dashboard'  },
+  { href: '/pos',               icon: '🛒', label: 'POS Terminal' },
+  { href: '/admin/orders',      icon: '🧾', label: 'Orders'      },
+  { href: '/admin/products',    icon: '📦', label: 'Products'    },
+  { href: '/admin/categories',  icon: '🏷️', label: 'Categories' },
+  { href: '/admin/expenses',    icon: '💸', label: 'Expenses'    },
+  { href: '/admin/reports',     icon: '📈', label: 'Reports'     },
 ]
 
 export function Sidebar({ userName }: { userName?: string }) {
   const pathname = usePathname()
   const router = useRouter()
 
-  async function handleLogout() {
-    await supabase.auth.signOut()
-    router.push('/login')
-  }
-
   return (
-    <aside style={{ background: 'var(--surface-sidebar)', width: 220, minHeight: '100vh' }} className="flex flex-col flex-shrink-0">
-      {/* Brand with real logo */}
-      <div className="px-4 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0" style={{ background: '#fff' }}>
-            <Image src="/logo.png" alt="Millino Chops" width={44} height={44} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+    <aside style={{ width: 220, background: 'var(--ink)', minHeight: '100vh', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      {/* Logo */}
+      <div style={{ padding: '1.25rem 1rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 12, overflow: 'hidden', background: 'rgba(255,255,255,0.08)', flexShrink: 0 }}>
+            <Image src="/logo.png" alt="Millino Chops" width={42} height={42} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
           </div>
           <div>
-            <div className="font-bold text-white text-sm leading-tight">Millino Chops</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.68rem' }}>Eatery POS</div>
+            <div style={{ fontWeight: 900, color: '#fff', fontSize: '0.85rem', letterSpacing: '0.03em' }}>MILLINO</div>
+            <div style={{ fontWeight: 900, color: 'var(--orange)', fontSize: '0.85rem', letterSpacing: '0.03em', marginTop: -2 }}>CHOPS</div>
           </div>
         </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {navItems.map((item) => {
+      <nav style={{ flex: 1, padding: '0.75rem 0.625rem', overflowY: 'auto' }}>
+        {NAV.map(item => {
           const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
           return (
-            <button
-              key={item.href}
-              onClick={() => router.push(item.href)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all"
-              style={{
-                background: active ? 'rgba(234,88,12,0.20)' : 'transparent',
-                color: active ? '#FDA274' : '#A8A29E',
-                fontWeight: active ? 600 : 400,
-                fontSize: '0.875rem',
-              }}
-              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)' }}
-              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}
-            >
-              <span className="text-base w-5 flex-shrink-0">{item.icon}</span>
-              <span>{item.label}</span>
-              {active && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--brand-orange)' }} />}
+            <button key={item.href} onClick={() => router.push(item.href)} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '0.625rem 0.75rem', borderRadius: 10, marginBottom: 2,
+              background: active ? 'rgba(240,90,40,0.18)' : 'transparent',
+              color: active ? '#FDA274' : '#7C6050',
+              fontWeight: active ? 700 : 500, fontSize: '0.875rem',
+              border: 'none', cursor: 'pointer', textAlign: 'left',
+              transition: 'all 0.12s',
+            }}
+            onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
+            onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+              <span style={{ fontSize: '1rem', width: 20, flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {active && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--orange)', flexShrink: 0 }} />}
             </button>
           )
         })}
       </nav>
 
       {/* User */}
-      <div className="px-3 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ padding: '0.75rem 0.625rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         {userName && (
-          <div className="px-3 py-2 mb-1">
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Signed in as</div>
-            <div className="text-white text-sm font-semibold mt-0.5 truncate">{userName}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0.5rem 0.75rem', marginBottom: 4 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 999, background: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: '0.8rem', flexShrink: 0 }}>
+              {userName[0].toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.8rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
+              <div style={{ color: '#7C6050', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Manager</div>
+            </div>
           </div>
         )}
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all"
-          style={{ color: '#F87171', fontSize: '0.875rem' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.10)' }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-          <span className="w-5">↩</span>
-          <span>Sign Out</span>
+        <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: '0.625rem 0.75rem', borderRadius: 10,
+          background: 'transparent', color: '#F87171',
+          fontWeight: 600, fontSize: '0.875rem', border: 'none', cursor: 'pointer',
+        }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.10)' }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+          <span style={{ fontSize: '1rem' }}>↩</span> Sign Out
         </button>
       </div>
     </aside>
