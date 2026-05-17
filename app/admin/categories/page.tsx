@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
 
 interface Category { id: string; name: string }
 
@@ -12,8 +11,9 @@ export default function CategoriesPage() {
   const [msg, setMsg] = useState('')
 
   async function load() {
-    const { data } = await supabase.from('categories').select('*').order('name')
-    setCategories(data ?? [])
+    const r = await fetch('/api/categories')
+    const d = await r.json()
+    setCategories(d.categories ?? [])
   }
 
   useEffect(() => { load() }, [])
@@ -21,82 +21,70 @@ export default function CategoriesPage() {
   async function handleSave() {
     if (!name.trim()) return
     setSaving(true); setMsg('')
-    const { error } = editId
-      ? await supabase.from('categories').update({ name: name.trim() }).eq('id', editId)
-      : await supabase.from('categories').insert({ name: name.trim() })
-    if (error) { setMsg('Error: ' + error.message) }
-    else { setMsg(editId ? '✓ Updated' : '✓ Category added'); setName(''); setEditId(null); load() }
-    setSaving(false)
-    setTimeout(() => setMsg(''), 3000)
+    const res = editId
+      ? await fetch(`/api/categories/${editId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+      : await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
+    const d = await res.json()
+    if (d.error) { setMsg('✗ ' + d.error) }
+    else { setMsg(editId ? '✓ Updated' : '✓ Added'); setName(''); setEditId(null); load() }
+    setSaving(false); setTimeout(() => setMsg(''), 3000)
   }
 
   async function handleDelete(id: string, catName: string) {
     if (!confirm(`Delete "${catName}"? Products will be uncategorised.`)) return
-    const { error } = await supabase.from('categories').delete().eq('id', id)
-    if (error) setMsg('Error: ' + error.message)
+    const d = await fetch(`/api/categories/${id}`, { method: 'DELETE' }).then(r => r.json())
+    if (d.error) setMsg('✗ ' + d.error)
     else { setMsg('✓ Deleted'); load() }
     setTimeout(() => setMsg(''), 3000)
   }
 
+  const S = {
+    page: { padding: '2rem', maxWidth: 640, margin: '0 auto' } as React.CSSProperties,
+    h1: { fontWeight: 900, fontSize: '1.75rem', color: 'var(--text-1)', letterSpacing: '-0.02em' } as React.CSSProperties,
+    sub: { color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4 } as React.CSSProperties,
+    form: { background: '#fff', border: '2px solid var(--orange)', borderRadius: 14, padding: '1.25rem', marginBottom: '1.5rem', marginTop: '1.5rem' } as React.CSSProperties,
+    row: { display: 'flex', gap: 10, alignItems: 'center' } as React.CSSProperties,
+    list: { background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' } as React.CSSProperties,
+    item: (i: number): React.CSSProperties => ({ display: 'flex', alignItems: 'center', gap: 12, padding: '1rem 1.25rem', borderTop: i > 0 ? '1px solid var(--border)' : undefined }),
+    avatar: { width: 36, height: 36, borderRadius: 10, background: 'var(--orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: '0.9rem', flexShrink: 0 } as React.CSSProperties,
+  }
+
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Categories</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Organise menu items into groups</p>
-      </div>
+    <div style={S.page}>
+      <h1 style={S.h1}>Categories</h1>
+      <p style={S.sub}>Organise your menu into groups</p>
 
-      {msg && (
-        <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium" style={{
-          background: msg.startsWith('✓') ? '#F0FDF4' : '#FEF2F2',
-          color: msg.startsWith('✓') ? '#15803D' : 'var(--brand-red)',
-          border: `1px solid ${msg.startsWith('✓') ? '#BBF7D0' : '#FECACA'}`
-        }}>{msg}</div>
-      )}
-
-      <div className="card p-5 mb-6" style={{ borderLeft: '4px solid var(--brand-orange)' }}>
-        <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{editId ? 'Edit Category' : 'New Category'}</h2>
-        <div className="flex gap-3">
+      <div style={S.form}>
+        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-2)', marginBottom: 10 }}>
+          {editId ? '✏️ Edit Category' : '＋ New Category'}
+        </div>
+        <div style={S.row}>
           <input value={name} onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSave()}
-            placeholder="e.g. Meals, Drinks, Pastries"
-            className="input flex-1" autoFocus />
+            placeholder="e.g. Meals, Drinks, Pastries" className="input" autoFocus style={{ flex: 1 }} />
           <button onClick={handleSave} disabled={saving || !name.trim()} className="btn btn-primary">
             {saving ? '…' : editId ? 'Update' : 'Add'}
           </button>
-          {editId && (
-            <button onClick={() => { setEditId(null); setName('') }} className="btn btn-ghost">Cancel</button>
-          )}
+          {editId && <button onClick={() => { setEditId(null); setName('') }} className="btn btn-ghost">Cancel</button>}
         </div>
+        {msg && <div style={{ marginTop: 8, fontSize: '0.85rem', fontWeight: 700, color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{msg}</div>}
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="px-5 py-3.5 flex items-center justify-between" style={{ borderBottom: '1px solid var(--border)' }}>
-          <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>All Categories</span>
-          <span style={{ background: '#FFF7ED', color: 'var(--brand-orange-dk)', fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.6rem', borderRadius: 999 }}>
-            {categories.length}
-          </span>
+      <div style={S.list}>
+        <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontWeight: 800, color: 'var(--text-1)', fontSize: '0.9rem' }}>All Categories</span>
+          <span style={{ background: '#FFF8F5', color: 'var(--orange)', fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: 999 }}>{categories.length}</span>
         </div>
         {categories.length === 0 ? (
-          <div className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
-            No categories yet. Add one above or seed the database.
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)' }}>No categories yet</div>
+        ) : categories.map((c, i) => (
+          <div key={c.id} style={S.item(i)}>
+            <div style={S.avatar}>{c.name[0].toUpperCase()}</div>
+            <span style={{ flex: 1, fontWeight: 700, color: 'var(--text-1)' }}>{c.name}</span>
+            <button onClick={() => { setEditId(c.id); setName(c.name) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: 'var(--orange)', fontSize: '0.85rem' }}>Edit</button>
+            <button onClick={() => handleDelete(c.id, c.name)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, color: 'var(--red)', fontSize: '0.85rem' }}>Delete</button>
           </div>
-        ) : (
-          <ul>
-            {categories.map((c, i) => (
-              <li key={c.id} className="flex items-center px-5 py-4 gap-4" style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0"
-                  style={{ background: 'var(--brand-orange)', color: '#fff' }}>
-                  {c.name[0].toUpperCase()}
-                </div>
-                <span className="flex-1 font-medium" style={{ color: 'var(--text-primary)' }}>{c.name}</span>
-                <button onClick={() => { setEditId(c.id); setName(c.name) }}
-                  className="text-sm font-semibold" style={{ color: 'var(--brand-orange)' }}>Edit</button>
-                <button onClick={() => handleDelete(c.id, c.name)}
-                  className="text-sm font-semibold" style={{ color: 'var(--danger)' }}>Delete</button>
-              </li>
-            ))}
-          </ul>
-        )}
+        ))}
       </div>
     </div>
   )

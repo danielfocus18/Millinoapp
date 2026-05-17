@@ -9,9 +9,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json()
+  const { name } = await request.json()
+  if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 })
   const supabase = createAdminClient()
-  const { data, error } = await supabase.from('categories').insert(body).select().single()
+  const { data, error } = await supabase.from('categories').insert({ name: name.trim() }).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ category: data })
 }

@@ -14,13 +14,9 @@ export default function ExpensesPage() {
   const [msg, setMsg] = useState('')
 
   const load = useCallback(async (f: Filter = filter) => {
-    let query = supabase.from('expenses').select('*').order('created_at', { ascending: false })
-    const now = new Date()
-    if (f === 'today') { const s = new Date(now); s.setHours(0,0,0,0); query = query.gte('created_at', s.toISOString()) }
-    else if (f === 'week') { const s = new Date(now); s.setDate(now.getDate()-7); query = query.gte('created_at', s.toISOString()) }
-    else if (f === 'month') { const s = new Date(now); s.setDate(1); s.setHours(0,0,0,0); query = query.gte('created_at', s.toISOString()) }
-    const { data } = await query
-    setExpenses(data ?? [])
+    const r = await fetch(`/api/expenses?filter=${f}`)
+    const d = await r.json()
+    setExpenses(d.expenses ?? [])
   }, [filter])
 
   useEffect(() => {
@@ -35,106 +31,93 @@ export default function ExpensesPage() {
   async function handleAdd() {
     if (!form.description.trim() || !form.amount) return
     setSaving(true); setMsg('')
-    const { error } = await supabase.from('expenses').insert({
-      description: form.description.trim(),
-      amount: parseFloat(form.amount),
-      recorded_by: userId,
+    const res = await fetch('/api/expenses', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ description: form.description, amount: form.amount, recorded_by: userId }),
     })
-    if (error) setMsg('Error: ' + error.message)
-    else { setMsg('✓ Expense recorded'); setForm({ description: '', amount: '' }); load() }
-    setSaving(false)
-    setTimeout(() => setMsg(''), 3000)
+    const d = await res.json()
+    if (d.error) setMsg('✗ ' + d.error)
+    else { setMsg('✓ Recorded'); setForm({ description: '', amount: '' }); load() }
+    setSaving(false); setTimeout(() => setMsg(''), 3000)
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this expense record?')) return
-    await supabase.from('expenses').delete().eq('id', id)
+    if (!confirm('Delete this expense?')) return
+    await fetch(`/api/expenses/${id}`, { method: 'DELETE' })
     load()
   }
 
   const total = expenses.reduce((s, e) => s + Number(e.amount), 0)
-  const filters: { value: Filter; label: string }[] = [
-    { value: 'today', label: 'Today' }, { value: 'week', label: 'This Week' },
-    { value: 'month', label: 'This Month' }, { value: 'all', label: 'All Time' },
+  const FILTERS: { v: Filter; l: string }[] = [
+    { v: 'today', l: 'Today' }, { v: 'week', l: 'This Week' },
+    { v: 'month', l: 'This Month' }, { v: 'all', l: 'All Time' },
   ]
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Expenses</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>Track all business costs and outgoings</p>
-      </div>
+    <div style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
+      <h1 style={{ fontWeight: 900, fontSize: '1.75rem', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>Expenses</h1>
+      <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4, marginBottom: '1.5rem' }}>Track all business costs</p>
 
       {/* Add form */}
-      <div className="card p-5 mb-6" style={{ borderLeft: '4px solid var(--brand-red)' }}>
-        <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Record Expense</h2>
-        <div className="flex gap-3 flex-wrap">
+      <div style={{ background: '#fff', border: '2px solid var(--red)', borderRadius: 14, padding: '1.25rem', marginBottom: '1.5rem' }}>
+        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-2)', marginBottom: 10 }}>💸 Record Expense</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
             onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            placeholder="e.g. Gas, Cooking oil, Staff meal" className="input flex-1 min-w-48" autoFocus />
-          <div className="flex gap-2">
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>GH₵</span>
+            placeholder="e.g. Cooking gas, Supplies, Staff meal"
+            className="input" style={{ flex: 1, minWidth: 200 }} autoFocus />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-3)' }}>GH₵</span>
               <input type="number" min="0" step="0.01" value={form.amount}
                 onChange={e => setForm({ ...form, amount: e.target.value })}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                placeholder="0.00" className="input" style={{ width: 130, paddingLeft: '2.75rem' }} />
+                placeholder="0.00" className="input" style={{ width: 130, paddingLeft: '2.6rem' }} />
             </div>
             <button onClick={handleAdd} disabled={saving || !form.description.trim() || !form.amount} className="btn btn-danger">
               {saving ? '…' : 'Record'}
             </button>
           </div>
         </div>
-        {msg && (
-          <div className="mt-3 text-sm font-medium" style={{ color: msg.startsWith('✓') ? 'var(--success)' : 'var(--danger)' }}>{msg}</div>
-        )}
+        {msg && <div style={{ marginTop: 8, fontSize: '0.85rem', fontWeight: 700, color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{msg}</div>}
       </div>
 
       {/* Filter + total */}
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <div className="flex gap-1.5 flex-wrap">
-          {filters.map(f => (
-            <button key={f.value} onClick={() => setFilter(f.value)} className="btn btn-sm"
-              style={{ background: filter === f.value ? 'var(--brand-red)' : 'transparent', color: filter === f.value ? '#fff' : 'var(--text-secondary)', border: `1.5px solid ${filter === f.value ? 'var(--brand-red)' : 'var(--border)'}` }}>
-              {f.label}
-            </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {FILTERS.map(f => (
+            <button key={f.v} onClick={() => setFilter(f.v)} className="btn btn-sm" style={{
+              background: filter === f.v ? 'var(--red)' : 'transparent',
+              color: filter === f.v ? '#fff' : 'var(--text-2)',
+              border: `1.5px solid ${filter === f.v ? 'var(--red)' : 'var(--border-2)'}`,
+            }}>{f.l}</button>
           ))}
         </div>
-        <div className="card px-4 py-2 flex items-center gap-2">
-          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Total:</span>
-          <span className="font-black text-lg" style={{ color: 'var(--brand-red)' }}>GH₵{total.toFixed(2)}</span>
+        <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 10, padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-2)' }}>Total:</span>
+          <span style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--red)' }}>GH₵{total.toFixed(2)}</span>
         </div>
       </div>
 
       {/* List */}
-      <div className="card overflow-hidden">
+      <div style={{ background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
         {expenses.length === 0 ? (
-          <div className="text-center py-12 text-sm" style={{ color: 'var(--text-muted)' }}>
-            No expenses recorded for this period
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)' }}>No expenses for this period</div>
+        ) : expenses.map((e, i) => (
+          <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '1rem 1.25rem', borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
+            <div style={{ width: 38, height: 38, borderRadius: 10, background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>💸</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-1)' }}>{e.description}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: 2 }}>
+                {new Date(e.created_at).toLocaleString('en-GH', { dateStyle: 'medium', timeStyle: 'short' })}
+              </div>
+            </div>
+            <span style={{ fontWeight: 900, fontSize: '1rem', color: 'var(--red)' }}>GH₵{Number(e.amount).toFixed(2)}</span>
+            <button onClick={() => handleDelete(e.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-3)', fontWeight: 700, fontSize: '0.85rem' }}
+              onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.color = 'var(--red)'}
+              onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.color = 'var(--text-3)'}>Del</button>
           </div>
-        ) : (
-          <ul>
-            {expenses.map((e, i) => (
-              <li key={e.id} className="flex items-center px-5 py-4 gap-4" style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ background: '#FEF2F2' }}>💸</div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold" style={{ color: 'var(--text-primary)' }}>{e.description}</div>
-                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                    {new Date(e.created_at).toLocaleString('en-GH', { dateStyle: 'medium', timeStyle: 'short' })}
-                  </div>
-                </div>
-                <span className="font-black text-base" style={{ color: 'var(--brand-red)' }}>GH₵{Number(e.amount).toFixed(2)}</span>
-                <button onClick={() => handleDelete(e.id)}
-                  className="text-sm font-semibold transition-colors"
-                  style={{ color: 'var(--text-muted)' }}
-                  onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.color = 'var(--danger)'}
-                  onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.color = 'var(--text-muted)'}>
-                  Del
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        ))}
       </div>
     </div>
   )
