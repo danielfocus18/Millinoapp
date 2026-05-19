@@ -11,12 +11,11 @@
   --red:          #DC2626;
 
   --ink:          #18120E;
-  --ink-soft:     #2C1F18;
+  --ink-soft:     #221710;
   --surface:      #FBF7F4;
   --surface-warm: #F5EDE6;
   --card:         #FFFFFF;
   --sidebar:      #18120E;
-  --sidebar-2:    #221710;
 
   --text-1:       #18120E;
   --text-2:       #6B5344;
@@ -57,44 +56,56 @@ body {
   white-space: nowrap; letter-spacing: 0.01em;
 }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.btn-primary  { background: var(--orange); color: #fff; box-shadow: var(--sh-orange); }
+.btn-primary { background: var(--orange); color: #fff; box-shadow: var(--sh-orange); }
 .btn-primary:hover:not(:disabled) { background: var(--orange-dk); transform: translateY(-1px); }
 .btn-primary:active:not(:disabled) { transform: translateY(0); }
-.btn-success  { background: var(--green); color: #fff; }
+.btn-success { background: var(--green); color: #fff; }
 .btn-success:hover:not(:disabled) { background: #15803D; transform: translateY(-1px); }
-.btn-danger   { background: var(--red); color: #fff; }
-.btn-danger:hover:not(:disabled)  { background: #B91C1C; }
-.btn-ghost    { background: transparent; color: var(--text-2); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #B91C1C; }
+.btn-ghost { background: transparent; color: var(--text-2); }
 .btn-ghost:hover:not(:disabled) { background: var(--border); }
-.btn-outline  { background: transparent; color: var(--orange); border: 2px solid var(--orange); }
+.btn-outline { background: transparent; color: var(--orange); border: 2px solid var(--orange); }
 .btn-outline:hover:not(:disabled) { background: var(--surface-warm); }
-.btn-dark     { background: var(--ink); color: var(--text-inv); }
+.btn-dark { background: var(--ink); color: var(--text-inv); }
 .btn-dark:hover:not(:disabled) { background: var(--ink-soft); }
-.btn-sm  { padding: 0.3rem 0.75rem; font-size: 0.8125rem; border-radius: 6px; }
-.btn-lg  { padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: var(--r); }
-.btn-xl  { padding: 1rem 2rem; font-size: 1.0625rem; border-radius: var(--r-lg); font-weight: 800; }
-.w-full  { width: 100%; }
+.btn-sm { padding: 0.3rem 0.75rem; font-size: 0.8125rem; border-radius: 6px; }
+.btn-lg { padding: 0.75rem 1.5rem; font-size: 1rem; border-radius: var(--r); }
+.btn-xl { padding: 1rem 2rem; font-size: 1.0625rem; border-radius: var(--r-lg); font-weight: 800; }
+.w-full { width: 100%; }
 
 /* ── Inputs ── */
 .input {
-  width: 100%; border: 2px solid var(--border-2);
-  border-radius: var(--r-sm); padding: 0.5625rem 0.875rem;
-  font-size: 0.9rem; color: var(--text-1); background: var(--card);
-  transition: border-color 0.15s, box-shadow 0.15s; outline: none;
+  width: 100%;
+  border: 2px solid var(--border-2);
+  border-radius: var(--r-sm);
+  padding: 0.5625rem 0.875rem;
+  font-size: 0.9rem;
+  color: var(--text-1);
+  background: var(--card);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
   font-family: inherit;
 }
 .input:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-glow); }
 .input::placeholder { color: var(--text-3); }
+
 .label {
-  display: block; font-size: 0.72rem; font-weight: 800;
-  color: var(--text-2); margin-bottom: 0.3rem;
-  letter-spacing: 0.07em; text-transform: uppercase;
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-2);
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 /* ── Cards ── */
 .card {
-  background: var(--card); border: 1.5px solid var(--border);
-  border-radius: var(--r-lg); box-shadow: var(--sh-sm);
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-sm);
 }
 
 /* ── Badges ── */
@@ -114,13 +125,6 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
 
-/* ── Print (receipt) ── */
-@media print {
-  body * { visibility: hidden !important; }
-  #receipt-print, #receipt-print * { visibility: visible !important; }
-  #receipt-print { position: fixed !important; left: 0; top: 0; width: 80mm; }
-}
-
 /* ── Animations ── */
 @keyframes pop-in {
   0%   { opacity: 0; transform: scale(0.92); }
@@ -133,3 +137,30 @@ body {
   100% { opacity: 1; transform: translateY(0); }
 }
 .slide-up { animation: slide-up 0.22s ease forwards; }
+
+/* ── Sidebar slide-in for mobile ── */
+@keyframes sidebar-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+.sidebar-open { animation: sidebar-in 0.25s ease forwards; }
+
+/* ── Thermal Receipt Print ── */
+@media print {
+  body > * { display: none !important; }
+  #receipt-print {
+    display: block !important;
+    visibility: visible !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 76mm !important;
+    font-family: 'Courier New', Courier, monospace !important;
+    font-size: 12px !important;
+    color: #000 !important;
+    background: #fff !important;
+    padding: 4mm !important;
+  }
+  #receipt-print * { visibility: visible !important; }
+  @page { size: 80mm auto; margin: 0; }
+}

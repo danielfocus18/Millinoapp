@@ -14,117 +14,160 @@ export default function LoginPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true); setError('')
-
-    // 1. Authenticate with Supabase Auth
     const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({ email, password })
     if (authErr) { setError(authErr.message); setLoading(false); return }
-
-    // 2. Fetch profile via server API (bypasses RLS using service role key)
     const res = await fetch(`/api/users?id=${authData.user.id}`)
     const { profile } = await res.json()
-
     if (!profile) {
-      // Auto-create a manager profile for this user via the setup API
-      const fix = await fetch('/api/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: authData.user.id, email, role: 'manager' }),
-      })
-      const fixData = await fix.json()
-      if (fixData.success) {
-        // Profile created — route as manager
-        router.push('/admin')
-        return
-      }
-      setError(`No profile found and auto-fix failed: ${fixData.error}`)
-      setLoading(false)
-      return
+      // Auto-create as manager and redirect
+      await fetch('/api/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: authData.user.id, email, role: 'manager' }) })
+      router.push('/admin'); return
     }
-
-    // 3. Route by role
-    if (profile.role === 'manager') router.push('/admin')
-    else router.push('/pos')
+    router.push(profile.role === 'manager' ? '/admin' : '/pos')
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: 'var(--surface-base)' }}>
-      {/* Left brand panel */}
-      <div className="hidden lg:flex flex-col justify-between w-96 p-10 flex-shrink-0" style={{ background: 'var(--surface-sidebar)' }}>
-        <div>
-          <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white">
-            <Image src="/logo.png" alt="Millino Chops" width={64} height={64} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+    <div style={{ minHeight: '100vh', display: 'flex', background: '#FBF7F4' }}>
+
+      {/* ── LEFT BRAND PANEL ── */}
+      <div style={{
+        width: 420, flexShrink: 0, background: '#18120E',
+        display: 'flex', flexDirection: 'column',
+        padding: '3rem 2.5rem',
+        position: 'relative', overflow: 'hidden',
+      }} className="hidden lg:flex flex-col">
+
+        {/* Decorative orange glow blob */}
+        <div style={{
+          position: 'absolute', top: -80, right: -80,
+          width: 280, height: 280, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(240,90,40,0.25) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: -60, left: -60,
+          width: 220, height: 220, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(240,90,40,0.12) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Logo — large and prominent */}
+        <div style={{ marginBottom: 'auto' }}>
+          <div style={{
+            width: 100, height: 100, borderRadius: 24,
+            background: '#fff', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(240,90,40,0.3)',
+            marginBottom: '2rem',
+          }}>
+            <Image src="/logo.png" alt="Millino Chops" width={100} height={100}
+              style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
           </div>
-        </div>
-        <div>
-          <h2 className="text-white font-black text-4xl leading-tight mb-4">Millino<br />Chops</h2>
-          <p style={{ color: '#A8A29E', lineHeight: 1.8, fontSize: '0.9rem' }}>
-            Eatery Point of Sale.<br />Built for speed, designed for simplicity.
-          </p>
-          <div className="mt-8 space-y-3">
+
+          <div style={{ marginBottom: '1rem' }}>
+            <div style={{ fontWeight: 900, fontSize: '2.5rem', color: '#fff', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+              Millino
+            </div>
+            <div style={{ fontWeight: 900, fontSize: '2.5rem', color: '#F05A28', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+              Chops
+            </div>
+          </div>
+
+          <div style={{ color: '#7C6050', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2.5rem' }}>
+            Eatery Point of Sale.<br />
+            Built for speed, designed for simplicity.
+          </div>
+
+          {/* Feature pills */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
               { icon: '⚡', text: 'Fast order processing' },
               { icon: '🏷️', text: 'Normal, Discount & Free pricing' },
-              { icon: '📈', text: 'Daily, weekly & monthly reports' },
+              { icon: '📈', text: 'Sales reports & analytics' },
               { icon: '💰', text: 'Profit & expense tracking' },
             ].map(f => (
-              <div key={f.text} className="flex items-center gap-3" style={{ color: '#A8A29E', fontSize: '0.875rem' }}>
-                <span>{f.icon}</span><span>{f.text}</span>
+              <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: '1rem', width: 24, textAlign: 'center' }}>{f.icon}</span>
+                <span style={{ color: '#A8917E', fontSize: '0.875rem' }}>{f.text}</span>
               </div>
             ))}
           </div>
-          <div className="mt-10 p-4 rounded-xl" style={{ background: 'rgba(234,88,12,0.12)', border: '1px solid rgba(234,88,12,0.2)' }}>
-            <div className="text-xs font-bold mb-2" style={{ color: 'var(--brand-orange)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role-based access</div>
-            <div className="text-xs space-y-1.5" style={{ color: '#A8A29E' }}>
-              <div>👨‍💼 <strong style={{ color: '#fff' }}>Manager</strong> → Dashboard + Full Admin + POS</div>
-              <div>🧑‍💻 <strong style={{ color: '#fff' }}>Cashier</strong> → POS Terminal only</div>
-            </div>
-          </div>
         </div>
-        <div style={{ color: '#44403C', fontSize: '0.75rem' }}>© {new Date().getFullYear()} Millino Chops</div>
+
+        {/* Footer */}
+        <div style={{ color: '#3D2B1F', fontSize: '0.75rem', marginTop: '3rem' }}>
+          © {new Date().getFullYear()} Millino Chops
+        </div>
       </div>
 
-      {/* Right form panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <div className="w-12 h-12 rounded-xl overflow-hidden bg-white shadow">
-              <Image src="/logo.png" alt="Millino Chops" width={48} height={48} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
+      {/* ── RIGHT FORM PANEL ── */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+        <div style={{ width: '100%', maxWidth: 400 }}>
+
+          {/* Mobile logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '2.5rem' }} className="lg:hidden">
+            <div style={{ width: 52, height: 52, borderRadius: 14, background: '#fff', overflow: 'hidden', boxShadow: '0 4px 16px rgba(240,90,40,0.2)' }}>
+              <Image src="/logo.png" alt="Millino Chops" width={52} height={52} style={{ objectFit: 'contain', width: '100%', height: '100%' }} />
             </div>
-            <span className="font-bold text-xl">Millino Chops</span>
+            <div>
+              <div style={{ fontWeight: 900, fontSize: '1.1rem', color: '#18120E', lineHeight: 1 }}>Millino Chops</div>
+              <div style={{ fontSize: '0.75rem', color: '#A8917E', marginTop: 2 }}>Eatery POS</div>
+            </div>
           </div>
 
-          <h1 className="font-bold text-2xl mb-1" style={{ color: 'var(--text-primary)' }}>Welcome back</h1>
-          <p className="mb-8" style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Sign in to continue to your workspace</p>
+          {/* Heading */}
+          <div style={{ marginBottom: '2rem' }}>
+            <h1 style={{ fontWeight: 900, fontSize: '1.875rem', color: '#18120E', letterSpacing: '-0.02em', marginBottom: 6 }}>
+              Welcome back
+            </h1>
+            <p style={{ color: '#A8917E', fontSize: '0.9rem' }}>
+              Sign in to your Millino Chops workspace
+            </p>
+          </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          {/* Form */}
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div>
               <label className="label">Email address</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                className="input" placeholder="you@example.com" required autoFocus />
+              <input
+                type="email" value={email} onChange={e => setEmail(e.target.value)}
+                className="input" placeholder="you@example.com"
+                required autoFocus
+                style={{ fontSize: '1rem', padding: '0.75rem 1rem' }}
+              />
             </div>
             <div>
               <label className="label">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-                className="input" placeholder="••••••••" required />
+              <input
+                type="password" value={password} onChange={e => setPassword(e.target.value)}
+                className="input" placeholder="••••••••"
+                required
+                style={{ fontSize: '1rem', padding: '0.75rem 1rem' }}
+              />
             </div>
 
             {error && (
-              <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#FEF2F2', color: 'var(--brand-red)', border: '1px solid #FECACA' }}>
+              <div style={{ background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 10, padding: '0.75rem 1rem', color: '#DC2626', fontSize: '0.875rem', fontWeight: 600 }}>
                 {error}
               </div>
             )}
 
-            <button type="submit" disabled={loading} className="btn btn-primary btn-lg w-full">
+            <button type="submit" disabled={loading} className="btn btn-primary"
+              style={{ padding: '0.875rem', fontSize: '1rem', fontWeight: 800, borderRadius: 12, marginTop: 4, letterSpacing: '0.02em' }}>
               {loading ? 'Signing in…' : 'Sign In →'}
             </button>
           </form>
 
-          <div className="mt-8 p-4 rounded-xl" style={{ background: 'var(--brand-cream)', border: '1px solid #FDE68A' }}>
-            <div className="font-semibold mb-2 text-sm" style={{ color: '#92400E' }}>Access levels</div>
-            <div style={{ color: '#78350F', fontSize: '0.8rem', lineHeight: 1.8 }}>
-              👨‍💼 <strong>Manager</strong> — Dashboard, Reports, Products, Orders, Expenses + POS<br />
-              🧑‍💻 <strong>Cashier</strong> — POS Terminal only
-            </div>
+          {/* Subtle divider line */}
+          <div style={{ margin: '2rem 0', height: 1, background: '#EDE0D6' }} />
+
+          {/* Minimal, non-sensitive footer note */}
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.8rem', color: '#C4A898' }}>
+              Millino Chops POS · Staff access only
+            </p>
+            <p style={{ fontSize: '0.75rem', color: '#D6C4B8', marginTop: 4 }}>
+              Contact your manager if you need access
+            </p>
           </div>
         </div>
       </div>
