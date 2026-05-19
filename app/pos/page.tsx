@@ -140,56 +140,75 @@ export default function POSPage() {
 
   // ── RECEIPT ──
   if (receipt) return (
-    <div style={{ minHeight: '100vh', background: 'var(--surface)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, padding: '2rem' }}>
-      {/* Screen preview */}
-      <div style={{ width: 320, background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 40px rgba(24,18,14,0.15)', border: '1.5px solid var(--border)' }}>
-        <div style={{ background: 'var(--ink)', padding: '1.5rem', textAlign: 'center' }}>
-          <img src="/logo.png" alt="" style={{ width: 48, height: 48, objectFit: 'contain', margin: '0 auto 8px', filter: 'brightness(0) invert(1)', opacity: 0.9, display: 'block' }} />
-          <div style={{ fontWeight: 900, color: '#fff', fontSize: '1.05rem', letterSpacing: '0.08em' }}>MILLINO CHOPS</div>
-          <div style={{ color: '#7C6050', fontSize: '0.7rem', marginTop: 2 }}>Eatery Point of Sale</div>
-          <div style={{ marginTop: 10, color: '#5C4033', fontSize: '0.7rem', lineHeight: 1.9 }}>
-            {receipt.date} · {receipt.time}<br />
-            <span style={{ fontFamily: 'monospace' }}>#{receipt.orderId.slice(-8).toUpperCase()}</span><br />
-            {receipt.cashier}
+    <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2rem' }}>
+
+      {/* ── Screen receipt card — pure black & white ── */}
+      <div style={{ width: 340, background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.12)', border: '1px solid #E0E0E0' }}>
+
+        {/* Header — white background, black text, logo in color */}
+        <div style={{ background: '#fff', padding: '1.75rem 1.5rem 1.25rem', textAlign: 'center', borderBottom: '1px solid #E8E8E8' }}>
+          <img src="/logo.png" alt="Millino Chops" style={{ width: 64, height: 64, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
+          <div style={{ fontWeight: 900, color: '#000', fontSize: '1.15rem', letterSpacing: '0.08em', marginBottom: 3 }}>MILLINO CHOPS</div>
+          <div style={{ color: '#555', fontSize: '0.72rem' }}>Eatery Point of Sale</div>
+          <div style={{ marginTop: 12, fontSize: '0.72rem', lineHeight: 2, color: '#333' }}>
+            <div>{receipt.date} · {receipt.time}</div>
+            <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 700 }}>#{receipt.orderId.slice(-8).toUpperCase()}</div>
+            <div>{receipt.cashier}</div>
           </div>
         </div>
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1.5px dashed var(--border-2)' }}>
+
+        {/* Items */}
+        <div style={{ padding: '1rem 1.375rem', borderBottom: '1px dashed #BDBDBD' }}>
           {receipt.items.map((item, i) => (
-            <div key={i} style={{ marginBottom: i < receipt.items.length - 1 ? 10 : 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.875rem' }}>
-                <span style={{ flex: 1, marginRight: 8, color: 'var(--text-1)' }}>{item.name}</span>
-                <span style={{ color: 'var(--orange)', flexShrink: 0 }}>GH₵{item.lineTotal.toFixed(2)}</span>
+            <div key={i} style={{ marginBottom: i < receipt.items.length - 1 ? 12 : 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.9rem', color: '#000' }}>
+                <span style={{ flex: 1, marginRight: 8 }}>{item.name}</span>
+                <span style={{ flexShrink: 0 }}>GH₵{item.lineTotal.toFixed(2)}</span>
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 2, display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: 3, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <span>{item.qty} × GH₵{item.unitPrice.toFixed(2)}</span>
-                {item.pricingType === 'discount' && <span style={{ background: '#FFFBEB', color: '#92400E', fontWeight: 800, padding: '1px 5px', borderRadius: 999, fontSize: '0.62rem' }}>{item.discountPercent.toFixed(0)}% OFF</span>}
-                {item.pricingType === 'free' && <span style={{ background: '#F0FDF4', color: '#15803D', fontWeight: 800, padding: '1px 5px', borderRadius: 999, fontSize: '0.62rem' }}>FREE</span>}
+                {item.pricingType === 'discount' && (
+                  <span style={{ border: '1px solid #000', color: '#000', fontWeight: 800, padding: '0 5px', borderRadius: 3, fontSize: '0.6rem' }}>{item.discountPercent.toFixed(0)}% OFF</span>
+                )}
+                {item.pricingType === 'free' && (
+                  <span style={{ border: '1px solid #000', color: '#000', fontWeight: 800, padding: '0 5px', borderRadius: 3, fontSize: '0.6rem' }}>FREE</span>
+                )}
               </div>
             </div>
           ))}
         </div>
-        <div style={{ padding: '0.875rem 1.25rem', borderBottom: '1.5px dashed var(--border-2)' }}>
+
+        {/* Totals */}
+        <div style={{ padding: '1rem 1.375rem', borderBottom: '1px dashed #BDBDBD' }}>
           {receipt.discount > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem', color: '#D97706', marginBottom: 5, fontWeight: 600 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem', color: '#000', marginBottom: 6 }}>
               <span>Discount</span><span>−GH₵{receipt.discount.toFixed(2)}</span>
             </div>
           )}
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '1rem' }}>
-            <span>TOTAL</span><span style={{ color: 'var(--orange)' }}>GH₵{receipt.net.toFixed(2)}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '1.05rem', color: '#000' }}>
+            <span>TOTAL</span>
+            <span>GH₵{receipt.net.toFixed(2)}</span>
           </div>
           {receipt.paymentMethod === 'cash' && receipt.amountPaid > receipt.net && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem', color: 'var(--green)', marginTop: 5, fontWeight: 700 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem', color: '#000', marginTop: 6 }}>
               <span>Change</span><span>GH₵{(receipt.amountPaid - receipt.net).toFixed(2)}</span>
             </div>
           )}
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', marginTop: 8 }}>
+          <div style={{ fontSize: '0.75rem', color: '#555', marginTop: 10 }}>
             Payment: {receipt.paymentMethod === 'momo' ? 'Mobile Money (MoMo)' : receipt.paymentMethod === 'card' ? 'Card' : 'Cash'}
           </div>
         </div>
-        <div style={{ background: '#FFF8F5', padding: '1rem', textAlign: 'center' }}>
-          <div style={{ fontWeight: 900, color: 'var(--orange)', fontSize: '0.78rem', letterSpacing: '0.06em' }}>THANK YOU! COME AGAIN 🧡</div>
+
+        {/* Thank you footer */}
+        <div style={{ background: '#fff', padding: '1.25rem', textAlign: 'center', borderTop: '1px solid #E8E8E8' }}>
+          <div style={{ fontWeight: 900, color: '#000', fontSize: '0.85rem', letterSpacing: '0.08em', marginBottom: 4 }}>
+            THANK YOU! COME AGAIN
+          </div>
+          <div style={{ fontSize: '0.7rem', color: '#888' }}>We appreciate your patronage</div>
         </div>
       </div>
+
+      {/* Action buttons */}
       <div style={{ display: 'flex', gap: 12 }}>
         <button onClick={() => window.print()} className="btn btn-outline">🖨 Print Receipt</button>
         <button onClick={() => { setReceipt(null); setCashGiven('') }} className="btn btn-primary btn-lg">＋ New Sale</button>
