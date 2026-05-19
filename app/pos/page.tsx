@@ -93,7 +93,7 @@ export default function POSPage() {
     } else if (pricingType === 'free') {
       discountPercent = 100; lineTotal = 0
     }
-    addItem({ id: Number(pickedProduct.id), name: pickedProduct.name, sku: pickedProduct.sku, unitPrice: pickedProduct.price, pricingType, discountPercent, lineTotal })
+    addItem({ id: pickedProduct.id, name: pickedProduct.name, sku: pickedProduct.sku, unitPrice: pickedProduct.price, pricingType, discountPercent, lineTotal })
     setPickedProduct(null)
   }
 

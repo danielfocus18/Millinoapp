@@ -4,25 +4,25 @@ import { create } from 'zustand'
 export type PricingType = 'normal' | 'discount' | 'free'
 
 export interface CartItem {
-  id: number
+  id: string           // UUID string — never convert to number
   name: string
   unitPrice: number
   quantity: number
   sku?: string
   pricingType: PricingType
-  discountPercent: number   // 0 for normal, calculated for discount, 100 for free
-  lineTotal: number         // actual charged amount
+  discountPercent: number
+  lineTotal: number
 }
 
 interface CartStore {
   items: CartItem[]
   addItem: (item: Omit<CartItem, 'quantity'>) => void
-  removeItem: (id: number) => void
-  updateQty: (id: number, qty: number) => void
+  removeItem: (id: string) => void
+  updateQty: (id: string, qty: number) => void
   clearCart: () => void
-  grossTotal: () => number   // sum of unitPrice * qty
-  discountTotal: () => number // sum of discounts
-  netTotal: () => number     // what customer actually pays
+  grossTotal: () => number
+  discountTotal: () => number
+  netTotal: () => number
 }
 
 export const useCart = create<CartStore>((set, get) => ({
@@ -30,7 +30,7 @@ export const useCart = create<CartStore>((set, get) => ({
 
   addItem: (item) => {
     set((state) => {
-      // Don't merge if different pricing type
+      // Merge with existing only if same product AND same pricing type
       const existing = state.items.find(
         (i) => i.id === item.id && i.pricingType === item.pricingType
       )
@@ -67,7 +67,7 @@ export const useCart = create<CartStore>((set, get) => ({
 
   clearCart: () => set({ items: [] }),
 
-  grossTotal: () => get().items.reduce((s, i) => s + i.unitPrice * i.quantity, 0),
+  grossTotal:    () => get().items.reduce((s, i) => s + i.unitPrice * i.quantity, 0),
   discountTotal: () => get().items.reduce((s, i) => s + (i.unitPrice * i.quantity - i.lineTotal), 0),
-  netTotal: () => get().items.reduce((s, i) => s + i.lineTotal, 0),
+  netTotal:      () => get().items.reduce((s, i) => s + i.lineTotal, 0),
 }))
