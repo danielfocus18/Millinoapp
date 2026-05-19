@@ -213,7 +213,7 @@ export default function POSPage() {
                 <span style={{ flex: 1, paddingRight: 8 }}>{item.name}</span>
                 <span>GH{item.lineTotal.toFixed(2)}</span>
               </div>
-              <div style={{ fontSize: 10, color: '#555' }}>
+              <div style={{ fontSize: 10, color: '#000' }}>
                 {item.qty} x GH{item.unitPrice.toFixed(2)}
                 {item.pricingType === 'discount' && ` (${item.discountPercent.toFixed(0)}% OFF)`}
                 {item.pricingType === 'free' && ' (COMPLIMENTARY)'}

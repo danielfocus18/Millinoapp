@@ -161,6 +161,18 @@ body {
     background: #fff !important;
     padding: 4mm !important;
   }
-  #receipt-print * { visibility: visible !important; }
+  /* Force ALL receipt text and backgrounds to pure black & white */
+  #receipt-print *,
+  #receipt-print span,
+  #receipt-print div {
+    visibility: visible !important;
+    color: #000 !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  #receipt-print { background: #fff !important; }
   @page { size: 80mm auto; margin: 0; }
 }
