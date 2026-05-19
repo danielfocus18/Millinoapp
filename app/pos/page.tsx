@@ -215,7 +215,7 @@ export default function POSPage() {
       </div>
 
       {/* Hidden thermal receipt for printing */}
-      <div id="receipt-print" style={{ display: 'none' }}>
+      <div id="receipt-print" style={{ position: 'fixed', left: '-9999px', top: 0, visibility: 'hidden', width: '76mm' }}>
         <div style={{ textAlign: 'center', marginBottom: 10 }}>
           <div style={{ fontWeight: 900, fontSize: 16, letterSpacing: 2 }}>MILLINO CHOPS</div>
           <div style={{ fontSize: 11 }}>Eatery Point of Sale</div>
