@@ -1,8 +1,17 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 
-interface OrderItem { id: string; quantity: number; unit_price: number; pricing_type?: string; discount_percent?: number; line_total?: number; products: { name: string } | null }
-interface Order { id: string; total: number; net_amount?: number; discount_amount?: number; gross_amount?: number; status: string; created_at: string; payment_method?: string; users?: { name: string } | null; order_items?: OrderItem[] }
+interface OrderItem {
+  id: string; product_id: string; quantity: number; unit_price: number
+  pricing_type?: string; discount_percent?: number; line_total?: number
+  products: { name: string } | null
+}
+interface Order {
+  id: string; total: number; net_amount?: number; discount_amount?: number
+  gross_amount?: number; status: string; created_at: string
+  payment_method?: string; users?: { name: string } | null
+  order_items?: OrderItem[]
+}
 type Filter = 'today' | 'week' | 'month' | 'all'
 
 const PM_ICON: Record<string, string> = { cash: '💵', momo: '📱', card: '💳' }
@@ -17,6 +26,8 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('today')
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const load = useCallback(async (f: Filter = filter) => {
     setLoading(true)
@@ -31,31 +42,48 @@ export default function OrdersPage() {
 
   async function updateStatus(id: string, status: string) {
     await fetch(`/api/orders/${id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
     load()
+  }
+
+  async function deleteOrder(id: string) {
+    setDeleting(id)
+    const res = await fetch(`/api/orders/${id}`, { method: 'DELETE' })
+    const d = await res.json()
+    if (d.error) {
+      alert('Delete failed: ' + d.error)
+    } else {
+      setExpanded(null)
+      load()
+    }
+    setDeleting(null)
+    setConfirmDelete(null)
   }
 
   const completed = orders.filter(o => o.status === 'completed')
   const revenue = completed.reduce((s, o) => s + Number(o.net_amount ?? o.total), 0)
   const discountGiven = completed.reduce((s, o) => s + Number(o.discount_amount ?? 0), 0)
 
+  const card: React.CSSProperties = { background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' }
+
   return (
     <div style={{ padding: '2rem', maxWidth: 900, margin: '0 auto' }}>
       <h1 style={{ fontWeight: 900, fontSize: '1.75rem', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>Orders</h1>
-      <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4, marginBottom: '1.5rem' }}>Sales history & transaction details</p>
+      <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4, marginBottom: '1.5rem' }}>
+        Sales history — managers can delete orders permanently
+      </p>
 
       {/* Controls */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6 }}>
-          {(['today','week','month','all'] as Filter[]).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className="btn btn-sm" style={{
-              background: filter === f ? 'var(--ink)' : '#fff',
-              color: filter === f ? '#fff' : 'var(--text-2)',
-              border: `1.5px solid ${filter === f ? 'var(--ink)' : 'var(--border-2)'}`,
-              textTransform: 'capitalize',
-            }}>{f}</button>
+          {(['today', 'week', 'month', 'all'] as Filter[]).map(f => (
+            <button key={f} onClick={() => setFilter(f)} className="btn btn-sm"
+              style={{ background: filter === f ? 'var(--ink)' : '#fff', color: filter === f ? '#fff' : 'var(--text-2)', border: `1.5px solid ${filter === f ? 'var(--ink)' : 'var(--border-2)'}`, textTransform: 'capitalize' }}>
+              {f}
+            </button>
           ))}
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 10 }}>
@@ -79,9 +107,7 @@ export default function OrdersPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>Loading…</div>
       ) : orders.length === 0 ? (
-        <div style={{ background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>
-          No orders for this period
-        </div>
+        <div style={{ ...card, textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>No orders for this period</div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {orders.map(order => {
@@ -89,37 +115,48 @@ export default function OrdersPage() {
             const disc = Number(order.discount_amount ?? 0)
             const st = STATUS_STYLE[order.status] ?? STATUS_STYLE.pending
             const isOpen = expanded === order.id
+            const isDeleting = deleting === order.id
+            const isConfirming = confirmDelete === order.id
+
             return (
-              <div key={order.id} style={{ background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
-                <button onClick={() => setExpanded(isOpen ? null : order.id)} style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '1rem 1.25rem', background: isOpen ? 'var(--surface)' : '#fff',
-                  border: 'none', cursor: 'pointer', textAlign: 'left',
-                }}>
+              <div key={order.id} style={card}>
+                {/* Row header */}
+                <button
+                  onClick={() => setExpanded(isOpen ? null : order.id)}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '1rem 1.25rem', background: isOpen ? 'var(--surface)' : '#fff', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                >
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-3)' }}>#{order.id.slice(-8).toUpperCase()}</span>
                       <span style={{ ...st, fontSize: '0.68rem', fontWeight: 800, padding: '0.18rem 0.6rem', borderRadius: 999, textTransform: 'uppercase' }}>{order.status}</span>
-                      {order.payment_method && <span style={{ fontSize: '0.85rem' }}>{PM_ICON[order.payment_method] ?? '💰'} <span style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontWeight: 600 }}>{order.payment_method.toUpperCase()}</span></span>}
+                      {order.payment_method && (
+                        <span style={{ fontSize: '0.78rem' }}>
+                          {PM_ICON[order.payment_method] ?? '💰'}
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontWeight: 600, marginLeft: 3 }}>{order.payment_method.toUpperCase()}</span>
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: 3 }}>
+                    <div style={{ fontSize: '0.73rem', color: 'var(--text-3)', marginTop: 3 }}>
                       {new Date(order.created_at).toLocaleString('en-GH', { dateStyle: 'medium', timeStyle: 'short' })}
                       {order.users?.name && ` · ${order.users.name}`}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontWeight: 900, fontSize: '1.1rem', color: 'var(--orange)' }}>GH₵{net.toFixed(2)}</div>
-                    {disc > 0 && <div style={{ fontSize: '0.72rem', color: 'var(--amber)', fontWeight: 700 }}>−GH₵{disc.toFixed(2)} disc</div>}
+                    <div style={{ fontWeight: 900, fontSize: '1.05rem', color: 'var(--orange)' }}>GH₵{net.toFixed(2)}</div>
+                    {disc > 0 && <div style={{ fontSize: '0.7rem', color: 'var(--amber)', fontWeight: 700 }}>−GH₵{disc.toFixed(2)}</div>}
                   </div>
                   <span style={{ color: 'var(--text-3)', fontSize: '0.8rem', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
                 </button>
 
+                {/* Expanded detail */}
                 {isOpen && (
                   <div style={{ borderTop: '1.5px solid var(--border)', padding: '1rem 1.25rem' }}>
-                    <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+
+                    {/* Items table */}
+                    <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse', marginBottom: 14 }}>
                       <thead>
                         <tr>
-                          {['Item','Qty','Unit Price','Type','Line Total'].map(h => (
+                          {['Item', 'Qty', 'Unit Price', 'Type', 'Line Total'].map(h => (
                             <th key={h} style={{ padding: '4px 0 10px', textAlign: h === 'Item' ? 'left' : 'right', fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                           ))}
                         </tr>
@@ -127,7 +164,9 @@ export default function OrdersPage() {
                       <tbody>
                         {order.order_items?.map((item, i) => (
                           <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                            <td style={{ padding: '8px 0', fontWeight: 600, color: 'var(--text-1)' }}>{item.products?.name ?? '—'}</td>
+                            <td style={{ padding: '8px 0', fontWeight: 600, color: 'var(--text-1)' }}>
+                              {item.products?.name ?? <span style={{ color: 'var(--text-3)', fontStyle: 'italic' }}>Deleted product</span>}
+                            </td>
                             <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--text-2)' }}>{item.quantity}</td>
                             <td style={{ padding: '8px 0', textAlign: 'right', color: 'var(--text-2)' }}>GH₵{Number(item.unit_price).toFixed(2)}</td>
                             <td style={{ padding: '8px 0', textAlign: 'right' }}>
@@ -142,12 +181,52 @@ export default function OrdersPage() {
                         ))}
                       </tbody>
                     </table>
-                    {order.status === 'pending' && (
-                      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                        <button onClick={() => updateStatus(order.id, 'completed')} className="btn btn-success btn-sm">✓ Mark Complete</button>
-                        <button onClick={() => updateStatus(order.id, 'cancelled')} className="btn btn-sm" style={{ background: '#FEF2F2', color: 'var(--red)', border: '1.5px solid #FECACA' }}>✕ Cancel</button>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {order.status === 'pending' && (
+                        <>
+                          <button onClick={() => updateStatus(order.id, 'completed')} className="btn btn-success btn-sm">✓ Mark Complete</button>
+                          <button onClick={() => updateStatus(order.id, 'cancelled')} className="btn btn-sm"
+                            style={{ background: '#FEF2F2', color: 'var(--red)', border: '1.5px solid #FECACA' }}>
+                            ✕ Cancel Order
+                          </button>
+                        </>
+                      )}
+
+                      {/* Delete — always available to managers */}
+                      <div style={{ marginLeft: 'auto' }}>
+                        {!isConfirming ? (
+                          <button
+                            onClick={() => setConfirmDelete(order.id)}
+                            className="btn btn-sm"
+                            style={{ background: 'transparent', color: 'var(--text-3)', border: '1.5px solid var(--border-2)', gap: 6 }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLElement).style.color = 'var(--red)'; (e.currentTarget as HTMLElement).style.borderColor = '#FECACA' }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-2)' }}
+                          >
+                            🗑 Delete Order
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 8, padding: '0.4rem 0.875rem' }}>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--red)' }}>Delete permanently?</span>
+                            <button
+                              onClick={() => deleteOrder(order.id)}
+                              disabled={isDeleting}
+                              className="btn btn-sm btn-danger"
+                            >
+                              {isDeleting ? 'Deleting…' : 'Yes, Delete'}
+                            </button>
+                            <button
+                              onClick={() => setConfirmDelete(null)}
+                              className="btn btn-sm btn-ghost"
+                              style={{ fontSize: '0.8rem' }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
