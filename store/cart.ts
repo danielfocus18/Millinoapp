@@ -4,7 +4,7 @@ import { create } from 'zustand'
 export type PricingType = 'normal' | 'discount' | 'free'
 
 export interface CartItem {
-  id: string           // UUID string — never convert to number
+  id: string
   name: string
   unitPrice: number
   quantity: number
@@ -14,9 +14,12 @@ export interface CartItem {
   lineTotal: number
 }
 
+// addItem accepts an initial quantity (defaults to 1)
+type AddItemPayload = Omit<CartItem, 'quantity'> & { quantity?: number }
+
 interface CartStore {
   items: CartItem[]
-  addItem: (item: Omit<CartItem, 'quantity'>) => void
+  addItem: (item: AddItemPayload) => void
   removeItem: (id: string) => void
   updateQty: (id: string, qty: number) => void
   clearCart: () => void
@@ -29,25 +32,34 @@ export const useCart = create<CartStore>((set, get) => ({
   items: [],
 
   addItem: (item) => {
+    const initialQty = item.quantity ?? 1
+
     set((state) => {
-      // Merge with existing only if same product AND same pricing type
+      // If same product + same pricing type already in cart, increment
       const existing = state.items.find(
         (i) => i.id === item.id && i.pricingType === item.pricingType
       )
       if (existing) {
+        const newQty = existing.quantity + initialQty
         return {
           items: state.items.map((i) =>
             i.id === item.id && i.pricingType === item.pricingType
               ? {
                   ...i,
-                  quantity: i.quantity + 1,
-                  lineTotal: (i.quantity + 1) * i.unitPrice * (1 - i.discountPercent / 100),
+                  quantity: newQty,
+                  lineTotal: newQty * i.unitPrice * (1 - i.discountPercent / 100),
                 }
               : i
           ),
         }
       }
-      return { items: [...state.items, { ...item, quantity: 1 }] }
+      // New item — use provided quantity and lineTotal
+      return {
+        items: [
+          ...state.items,
+          { ...item, quantity: initialQty },
+        ],
+      }
     })
   },
 
@@ -59,7 +71,11 @@ export const useCart = create<CartStore>((set, get) => ({
     set((state) => ({
       items: state.items.map((i) =>
         i.id === id
-          ? { ...i, quantity: qty, lineTotal: qty * i.unitPrice * (1 - i.discountPercent / 100) }
+          ? {
+              ...i,
+              quantity: qty,
+              lineTotal: qty * i.unitPrice * (1 - i.discountPercent / 100),
+            }
           : i
       ),
     }))
