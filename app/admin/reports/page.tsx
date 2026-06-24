@@ -1,19 +1,30 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line, CartesianGrid } from 'recharts'
 import * as XLSX from 'xlsx'
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly'
-interface Summary { grossSales: number; discountImpact: number; netSales: number; freeValue: number; totalExpenses: number; netProfit: number }
+interface Summary { grossSales: number; discountImpact: number; netSales: number; freeValue: number; totalExpenses: number; netProfit: number; avgOrderValue: number }
 interface ProductRow { name: string; qty: number; normalSales: number; discountSales: number; freeQty: number; totalRevenue: number }
+interface CategoryRow { name: string; qty: number; revenue: number }
+interface PaymentRow { method: string; revenue: number; count: number }
+interface CashierRow { name: string; revenue: number; orders: number }
+interface TrendPoint { label: string; revenue: number }
 
 const COLORS = ['#F05A28','#F59E0B','#16A34A','#8B5CF6','#0284C7','#EC4899','#14B8A6','#F97316']
+const CAT_COLORS: Record<string, string> = { Meals: '#F05A28', Pastries: '#F59E0B', Drinks: '#0284C7' }
+const PM_COLORS: Record<string, string> = { Cash: '#16A34A', 'Mobile Money': '#8B5CF6', Card: '#0284C7' }
 
 export default function ReportsPage() {
   const [period, setPeriod] = useState<Period>('daily')
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [summary, setSummary] = useState<Summary | null>(null)
   const [products, setProducts] = useState<ProductRow[]>([])
+  const [categoryBreakdown, setCategoryBreakdown] = useState<CategoryRow[]>([])
+  const [paymentBreakdown, setPaymentBreakdown] = useState<PaymentRow[]>([])
+  const [cashierBreakdown, setCashierBreakdown] = useState<CashierRow[]>([])
+  const [revenueTrend, setRevenueTrend] = useState<TrendPoint[]>([])
+  const [trendGranularity, setTrendGranularity] = useState('hour')
   const [orderCount, setOrderCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [exportMsg, setExportMsg] = useState('')
@@ -23,112 +34,108 @@ export default function ReportsPage() {
     try {
       const r = await fetch(`/api/reports?period=${period}&date=${date}`)
       const d = await r.json()
-      setSummary(d.summary); setProducts(d.products ?? []); setOrderCount(d.orderCount ?? 0)
+      setSummary(d.summary)
+      setProducts(d.products ?? [])
+      setCategoryBreakdown(d.categoryBreakdown ?? [])
+      setPaymentBreakdown(d.paymentBreakdown ?? [])
+      setCashierBreakdown(d.cashierBreakdown ?? [])
+      setRevenueTrend(d.revenueTrend ?? [])
+      setTrendGranularity(d.trendGranularity ?? 'hour')
+      setOrderCount(d.orderCount ?? 0)
     } finally { setLoading(false) }
   }, [period, date])
 
   useEffect(() => { load() }, [load])
 
-  // Robust file download — works across all browsers including Safari/mobile
   function downloadFile(blob: Blob, filename: string) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.style.display = 'none'
-    document.body.appendChild(a)   // must be attached to DOM for click() to fire reliably
-    a.click()
-    document.body.removeChild(a)
+    a.href = url; a.download = filename; a.style.display = 'none'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  function buildRows() {
-    return products.map(p => ({
-      'Product': p.name,
-      'Qty Sold': p.qty,
-      'Normal Sales (GH₵)': Number(p.normalSales.toFixed(2)),
-      'Discount Sales (GH₵)': Number(p.discountSales.toFixed(2)),
-      'Free Qty': p.freeQty,
-      'Total Revenue (GH₵)': Number(p.totalRevenue.toFixed(2)),
-    }))
-  }
-
   function exportCSV() {
-    if (!products.length) { setExportMsg('No data to export for this period'); setTimeout(() => setExportMsg(''), 3000); return }
+    if (!products.length) { setExportMsg('No data to export'); setTimeout(() => setExportMsg(''), 3000); return }
     try {
       const header = 'Product,Qty Sold,Normal Sales (GH₵),Discount Sales (GH₵),Free Qty,Total Revenue (GH₵)'
-      const rows = products.map(p =>
-        `"${p.name.replace(/"/g, '""')}",${p.qty},${p.normalSales.toFixed(2)},${p.discountSales.toFixed(2)},${p.freeQty},${p.totalRevenue.toFixed(2)}`
-      )
-      const csv = '\uFEFF' + [header, ...rows].join('\r\n') // BOM so Excel opens UTF-8 correctly
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-      downloadFile(blob, `millino-chops_${period}_${date}.csv`)
+      const rows = products.map(p => `"${p.name.replace(/"/g, '""')}",${p.qty},${p.normalSales.toFixed(2)},${p.discountSales.toFixed(2)},${p.freeQty},${p.totalRevenue.toFixed(2)}`)
+      const csv = '\uFEFF' + [header, ...rows].join('\r\n')
+      downloadFile(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `millino-chops_${period}_${date}.csv`)
       setExportMsg('✓ CSV downloaded')
-    } catch (err) {
-      setExportMsg('✗ Export failed: ' + (err as Error).message)
-    }
+    } catch (err) { setExportMsg('✗ ' + (err as Error).message) }
     setTimeout(() => setExportMsg(''), 3000)
   }
 
   function exportExcel() {
-    if (!products.length) { setExportMsg('No data to export for this period'); setTimeout(() => setExportMsg(''), 3000); return }
+    if (!products.length) { setExportMsg('No data to export'); setTimeout(() => setExportMsg(''), 3000); return }
     try {
       const wb = XLSX.utils.book_new()
-
-      // Sheet 1 — Summary
       if (summary) {
         const summaryRows = [
-          { Metric: 'Period', Value: period },
-          { Metric: 'Date', Value: date },
+          { Metric: 'Period', Value: period }, { Metric: 'Date', Value: date },
           { Metric: 'Completed Orders', Value: orderCount },
           { Metric: 'Gross Sales (GH₵)', Value: Number(summary.grossSales.toFixed(2)) },
           { Metric: 'Discounts Given (GH₵)', Value: Number(summary.discountImpact.toFixed(2)) },
           { Metric: 'Net Sales (GH₵)', Value: Number(summary.netSales.toFixed(2)) },
+          { Metric: 'Avg Order Value (GH₵)', Value: Number(summary.avgOrderValue.toFixed(2)) },
           { Metric: 'Free Items Value (GH₵)', Value: Number(summary.freeValue.toFixed(2)) },
           { Metric: 'Total Expenses (GH₵)', Value: Number(summary.totalExpenses.toFixed(2)) },
           { Metric: 'Net Profit (GH₵)', Value: Number(summary.netProfit.toFixed(2)) },
         ]
-        const wsSummary = XLSX.utils.json_to_sheet(summaryRows)
-        wsSummary['!cols'] = [{ wch: 24 }, { wch: 16 }]
-        XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary')
+        const ws1 = XLSX.utils.json_to_sheet(summaryRows); ws1['!cols'] = [{ wch: 24 }, { wch: 16 }]
+        XLSX.utils.book_append_sheet(wb, ws1, 'Summary')
       }
+      const ws2 = XLSX.utils.json_to_sheet(products.map(p => ({
+        'Product': p.name, 'Qty Sold': p.qty, 'Normal Sales (GH₵)': Number(p.normalSales.toFixed(2)),
+        'Discount Sales (GH₵)': Number(p.discountSales.toFixed(2)), 'Free Qty': p.freeQty, 'Total Revenue (GH₵)': Number(p.totalRevenue.toFixed(2)),
+      })))
+      ws2['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }]
+      XLSX.utils.book_append_sheet(wb, ws2, 'Product Breakdown')
 
-      // Sheet 2 — Product breakdown
-      const wsProducts = XLSX.utils.json_to_sheet(buildRows())
-      wsProducts['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }]
-      XLSX.utils.book_append_sheet(wb, wsProducts, 'Product Breakdown')
+      if (categoryBreakdown.length) {
+        const ws3 = XLSX.utils.json_to_sheet(categoryBreakdown.map(c => ({ Category: c.name, 'Qty Sold': c.qty, 'Revenue (GH₵)': Number(c.revenue.toFixed(2)) })))
+        ws3['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 16 }]
+        XLSX.utils.book_append_sheet(wb, ws3, 'Category Breakdown')
+      }
+      if (cashierBreakdown.length) {
+        const ws4 = XLSX.utils.json_to_sheet(cashierBreakdown.map(c => ({ Cashier: c.name, Orders: c.orders, 'Revenue (GH₵)': Number(c.revenue.toFixed(2)) })))
+        ws4['!cols'] = [{ wch: 18 }, { wch: 10 }, { wch: 16 }]
+        XLSX.utils.book_append_sheet(wb, ws4, 'Staff Performance')
+      }
 
       XLSX.writeFile(wb, `millino-chops_${period}_${date}.xlsx`)
       setExportMsg('✓ Excel file downloaded')
-    } catch (err) {
-      setExportMsg('✗ Export failed: ' + (err as Error).message)
-    }
+    } catch (err) { setExportMsg('✗ ' + (err as Error).message) }
     setTimeout(() => setExportMsg(''), 3000)
   }
 
   const top8 = products.slice(0, 8)
-  const normalTotal   = products.reduce((s, p) => s + p.normalSales, 0)
-  const discountTotal = products.reduce((s, p) => s + p.discountSales, 0)
-  const pieData = [
-    { name: 'Normal Sales',   value: parseFloat(normalTotal.toFixed(2)),   fill: '#F05A28' },
-    { name: 'Discount Sales', value: parseFloat(discountTotal.toFixed(2)), fill: '#F59E0B' },
+  const normalTotal = products.reduce((s, p) => s + p.normalSales, 0)
+  const discountTotalAmt = products.reduce((s, p) => s + p.discountSales, 0)
+  const typePieData = [
+    { name: 'Normal Sales', value: parseFloat(normalTotal.toFixed(2)), fill: '#F05A28' },
+    { name: 'Discount Sales', value: parseFloat(discountTotalAmt.toFixed(2)), fill: '#F59E0B' },
     ...(summary?.freeValue ? [{ name: 'Free Items', value: parseFloat(summary.freeValue.toFixed(2)), fill: '#16A34A' }] : []),
   ].filter(d => d.value > 0)
 
   const summaryCards = summary ? [
-    { label: 'Gross Sales',     value: summary.grossSales,     icon: '📊', color: 'var(--orange)', note: 'Before discounts' },
-    { label: 'Discounts',       value: summary.discountImpact, icon: '🏷️', color: 'var(--amber)',  note: 'Total discounted' },
-    { label: 'Net Sales',       value: summary.netSales,        icon: '💰', color: 'var(--green)',  note: 'Collected' },
-    { label: 'Free Items',      value: summary.freeValue,       icon: '🎁', color: '#8B5CF6',       note: 'Complimentary' },
-    { label: 'Expenses',        value: summary.totalExpenses,   icon: '💸', color: 'var(--red)',    note: 'Business costs' },
-    { label: 'Net Profit',      value: summary.netProfit,       icon: '📈', color: summary.netProfit >= 0 ? 'var(--green)' : 'var(--red)', note: 'Revenue − Costs' },
+    { label: 'Gross Sales',    value: `GH₵${summary.grossSales.toFixed(2)}`,    icon: '📊', color: 'var(--orange)', note: 'Before discounts' },
+    { label: 'Discounts',      value: `GH₵${summary.discountImpact.toFixed(2)}`,icon: '🏷️', color: 'var(--amber)',  note: 'Total discounted' },
+    { label: 'Net Sales',      value: `GH₵${summary.netSales.toFixed(2)}`,       icon: '💰', color: 'var(--green)',  note: 'Collected' },
+    { label: 'Avg Order Value',value: `GH₵${summary.avgOrderValue.toFixed(2)}`,  icon: '🧾', color: '#0284C7',       note: `Across ${orderCount} orders` },
+    { label: 'Free Items',     value: `GH₵${summary.freeValue.toFixed(2)}`,      icon: '🎁', color: '#8B5CF6',       note: 'Complimentary' },
+    { label: 'Expenses',       value: `GH₵${summary.totalExpenses.toFixed(2)}`,  icon: '💸', color: 'var(--red)',    note: 'Business costs' },
+    { label: 'Net Profit',     value: `GH₵${summary.netProfit.toFixed(2)}`,      icon: '📈', color: summary.netProfit >= 0 ? 'var(--green)' : 'var(--red)', note: 'Revenue − Costs' },
   ] : []
 
   const cardStyle: React.CSSProperties = { background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, padding: '1.125rem 1rem' }
+  const trendLabel = trendGranularity === 'hour' ? 'Revenue by Hour of Day' : trendGranularity === 'month' ? 'Revenue by Month' : 'Revenue by Day'
 
   return (
-    <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
-      {/* Print-only header — shown only when printing, gives clean context */}
+    <div style={{ padding: '2rem', maxWidth: 1180, margin: '0 auto' }}>
+
+      {/* Print-only header */}
       <div className="print-only" style={{ display: 'none', marginBottom: '1rem' }}>
         <div style={{ fontWeight: 900, fontSize: '1.4rem', color: '#000' }}>MILLINO CHOPS</div>
         <div style={{ fontSize: '0.9rem', color: '#333', marginTop: 2 }}>
@@ -146,11 +153,7 @@ export default function ReportsPage() {
           <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4 }}>Sales analytics & product breakdown</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {exportMsg && (
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: exportMsg.startsWith('✓') ? 'var(--green)' : exportMsg.startsWith('✗') ? 'var(--red)' : 'var(--text-3)' }}>
-              {exportMsg}
-            </span>
-          )}
+          {exportMsg && <span style={{ fontSize: '0.8rem', fontWeight: 700, color: exportMsg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{exportMsg}</span>}
           <button onClick={exportCSV} disabled={!products.length} className="btn btn-outline btn-sm">⬇ CSV</button>
           <button onClick={exportExcel} disabled={!products.length} className="btn btn-outline btn-sm">⬇ Excel</button>
           <button onClick={() => window.print()} className="btn btn-ghost btn-sm">🖨 Print</button>
@@ -169,43 +172,105 @@ export default function ReportsPage() {
           ))}
         </div>
         <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" style={{ width: 160 }} />
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-3)', fontWeight: 600, marginLeft: 'auto' }}>
-          {orderCount} completed order{orderCount !== 1 ? 's' : ''}
-        </span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-3)', fontWeight: 600, marginLeft: 'auto' }}>{orderCount} completed order{orderCount !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
         {summaryCards.map(s => (
           <div key={s.label} style={cardStyle}>
             <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{s.icon}</div>
-            <div style={{ fontWeight: 900, fontSize: '1.3rem', color: s.color, lineHeight: 1 }}>GH₵{Number(s.value).toFixed(2)}</div>
-            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-2)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-3)', marginTop: 2 }}>{s.note}</div>
+            <div style={{ fontWeight: 900, fontSize: '1.25rem', color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-2)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 2 }}>{s.note}</div>
           </div>
         ))}
       </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>Loading charts…</div>
-      ) : products.length === 0 ? (
-        <div style={{ ...cardStyle, textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>
-          No sales data for this period — nothing to export yet
-        </div>
+      ) : orderCount === 0 ? (
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>No sales data for this period</div>
       ) : (
         <>
-          {/* Charts row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, marginBottom: '1.5rem' }}>
+          {/* ── Revenue Trend (full width) ── */}
+          <div style={{ ...cardStyle, marginBottom: 16 }}>
+            <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, fontSize: '0.9rem' }}>{trendLabel}</div>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={revenueTrend} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickLine={false} axisLine={false}
+                  interval={revenueTrend.length > 15 ? Math.floor(revenueTrend.length / 10) : 0} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} tickFormatter={v => `₵${v}`} />
+                <Tooltip formatter={(v: unknown) => [`GH₵${(v as number).toFixed(2)}`, 'Revenue']}
+                  contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
+                <Line type="monotone" dataKey="revenue" stroke="var(--orange)" strokeWidth={2.5} dot={revenueTrend.length <= 14} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* ── Row: Category + Payment + Top Products ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginBottom: 16 }}>
+
+            {/* Category breakdown */}
+            {categoryBreakdown.length > 0 && (
+              <div style={cardStyle}>
+                <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 12, fontSize: '0.9rem' }}>Revenue by Category</div>
+                <ResponsiveContainer width="100%" height={190}>
+                  <PieChart>
+                    <Pie data={categoryBreakdown} dataKey="revenue" nameKey="name" cx="50%" cy="50%" innerRadius={42} outerRadius={72} paddingAngle={3}>
+                      {categoryBreakdown.map((c, i) => <Cell key={i} fill={CAT_COLORS[c.name] ?? COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: unknown) => `GH₵${(v as number).toFixed(2)}`} contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.72rem' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Payment method breakdown */}
+            {paymentBreakdown.length > 0 && (
+              <div style={cardStyle}>
+                <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 12, fontSize: '0.9rem' }}>Revenue by Payment Method</div>
+                <ResponsiveContainer width="100%" height={190}>
+                  <PieChart>
+                    <Pie data={paymentBreakdown} dataKey="revenue" nameKey="method" cx="50%" cy="50%" innerRadius={42} outerRadius={72} paddingAngle={3}>
+                      {paymentBreakdown.map((p, i) => <Cell key={i} fill={PM_COLORS[p.method] ?? COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: unknown) => `GH₵${(v as number).toFixed(2)}`} contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.72rem' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Sales by pricing type */}
+            {typePieData.length > 0 && (
+              <div style={cardStyle}>
+                <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 12, fontSize: '0.9rem' }}>Sales by Pricing Type</div>
+                <ResponsiveContainer width="100%" height={190}>
+                  <PieChart>
+                    <Pie data={typePieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={42} outerRadius={72} paddingAngle={3}>
+                      {typePieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                    </Pie>
+                    <Tooltip formatter={(v: unknown) => `GH₵${(v as number).toFixed(2)}`} contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.72rem' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+
+          {/* ── Row: Top Products + Staff Performance ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: cashierBreakdown.length > 1 ? '1fr 1fr' : '1fr', gap: 16, marginBottom: 16 }}>
             <div style={cardStyle}>
               <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, fontSize: '0.9rem' }}>Top Products by Revenue</div>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={top8} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#A8917E' }} tickLine={false} axisLine={false}
                     tickFormatter={v => v.length > 12 ? v.slice(0, 12) + '…' : v} />
-                  <YAxis tick={{ fontSize: 10, fill: '#A8917E' }} tickLine={false} axisLine={false}
-                    tickFormatter={v => `₵${v}`} />
-                  <Tooltip formatter={(v: unknown) => [`GH₵${(v as number).toFixed(2)}`, 'Revenue']}
-                    contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 10, fill: '#A8917E' }} tickLine={false} axisLine={false} tickFormatter={v => `₵${v}`} />
+                  <Tooltip formatter={(v: unknown) => [`GH₵${(v as number).toFixed(2)}`, 'Revenue']} contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
                   <Bar dataKey="totalRevenue" radius={[6, 6, 0, 0]}>
                     {top8.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Bar>
@@ -213,22 +278,26 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
 
-            {pieData.length > 0 && (
-              <div style={{ ...cardStyle, minWidth: 240 }}>
-                <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, fontSize: '0.9rem' }}>Sales by Type</div>
-                <PieChart width={220} height={220}>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} paddingAngle={3}>
-                    {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                  </Pie>
-                  <Tooltip formatter={(v: unknown) => `GH₵${(v as number).toFixed(2)}`}
-                    contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '0.75rem' }} />
-                </PieChart>
+            {/* Staff performance — only show if more than 1 cashier has sales */}
+            {cashierBreakdown.length > 1 && (
+              <div style={cardStyle}>
+                <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, fontSize: '0.9rem' }}>Staff Performance</div>
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={cashierBreakdown} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                    <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-3)' }} tickLine={false} axisLine={false} tickFormatter={v => `₵${v}`} />
+                    <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 11, fill: 'var(--text-2)' }} tickLine={false} axisLine={false} />
+                    <Tooltip formatter={(v: unknown, n, p) => [`GH₵${(v as number).toFixed(2)} (${(p?.payload as CashierRow)?.orders ?? 0} orders)`, 'Revenue']}
+                      contentStyle={{ borderRadius: 10, border: '1.5px solid var(--border)', fontSize: 12 }} />
+                    <Bar dataKey="revenue" radius={[0, 6, 6, 0]} fill="var(--orange)">
+                      {cashierBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {/* Product table */}
+          {/* ── Product table ── */}
           <div style={{ ...cardStyle, overflow: 'hidden', padding: 0 }}>
             <div style={{ padding: '1rem 1.25rem', borderBottom: '1.5px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontWeight: 800, color: 'var(--text-1)' }}>Full Product Breakdown</span>
