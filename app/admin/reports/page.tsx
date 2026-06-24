@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts'
+import * as XLSX from 'xlsx'
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly'
 interface Summary { grossSales: number; discountImpact: number; netSales: number; freeValue: number; totalExpenses: number; netProfit: number }
@@ -15,6 +16,7 @@ export default function ReportsPage() {
   const [products, setProducts] = useState<ProductRow[]>([])
   const [orderCount, setOrderCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [exportMsg, setExportMsg] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -27,21 +29,86 @@ export default function ReportsPage() {
 
   useEffect(() => { load() }, [load])
 
-  function exportCSV() {
-    const rows = ['Product,Qty,Normal,Discount Sales,Free Qty,Total Revenue',
-      ...products.map(p => `"${p.name}",${p.qty},${p.normalSales.toFixed(2)},${p.discountSales.toFixed(2)},${p.freeQty},${p.totalRevenue.toFixed(2)}`)]
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob)
-    a.download = `millino_${period}_${date}.csv`; a.click()
+  // Robust file download — works across all browsers including Safari/mobile
+  function downloadFile(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)   // must be attached to DOM for click() to fire reliably
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
 
-  // Top 8 products for bar chart
-  const top8 = products.slice(0, 8)
+  function buildRows() {
+    return products.map(p => ({
+      'Product': p.name,
+      'Qty Sold': p.qty,
+      'Normal Sales (GH₵)': Number(p.normalSales.toFixed(2)),
+      'Discount Sales (GH₵)': Number(p.discountSales.toFixed(2)),
+      'Free Qty': p.freeQty,
+      'Total Revenue (GH₵)': Number(p.totalRevenue.toFixed(2)),
+    }))
+  }
 
-  // Pie chart data: revenue by pricing type
+  function exportCSV() {
+    if (!products.length) { setExportMsg('No data to export for this period'); setTimeout(() => setExportMsg(''), 3000); return }
+    try {
+      const header = 'Product,Qty Sold,Normal Sales (GH₵),Discount Sales (GH₵),Free Qty,Total Revenue (GH₵)'
+      const rows = products.map(p =>
+        `"${p.name.replace(/"/g, '""')}",${p.qty},${p.normalSales.toFixed(2)},${p.discountSales.toFixed(2)},${p.freeQty},${p.totalRevenue.toFixed(2)}`
+      )
+      const csv = '\uFEFF' + [header, ...rows].join('\r\n') // BOM so Excel opens UTF-8 correctly
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      downloadFile(blob, `millino-chops_${period}_${date}.csv`)
+      setExportMsg('✓ CSV downloaded')
+    } catch (err) {
+      setExportMsg('✗ Export failed: ' + (err as Error).message)
+    }
+    setTimeout(() => setExportMsg(''), 3000)
+  }
+
+  function exportExcel() {
+    if (!products.length) { setExportMsg('No data to export for this period'); setTimeout(() => setExportMsg(''), 3000); return }
+    try {
+      const wb = XLSX.utils.book_new()
+
+      // Sheet 1 — Summary
+      if (summary) {
+        const summaryRows = [
+          { Metric: 'Period', Value: period },
+          { Metric: 'Date', Value: date },
+          { Metric: 'Completed Orders', Value: orderCount },
+          { Metric: 'Gross Sales (GH₵)', Value: Number(summary.grossSales.toFixed(2)) },
+          { Metric: 'Discounts Given (GH₵)', Value: Number(summary.discountImpact.toFixed(2)) },
+          { Metric: 'Net Sales (GH₵)', Value: Number(summary.netSales.toFixed(2)) },
+          { Metric: 'Free Items Value (GH₵)', Value: Number(summary.freeValue.toFixed(2)) },
+          { Metric: 'Total Expenses (GH₵)', Value: Number(summary.totalExpenses.toFixed(2)) },
+          { Metric: 'Net Profit (GH₵)', Value: Number(summary.netProfit.toFixed(2)) },
+        ]
+        const wsSummary = XLSX.utils.json_to_sheet(summaryRows)
+        wsSummary['!cols'] = [{ wch: 24 }, { wch: 16 }]
+        XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary')
+      }
+
+      // Sheet 2 — Product breakdown
+      const wsProducts = XLSX.utils.json_to_sheet(buildRows())
+      wsProducts['!cols'] = [{ wch: 30 }, { wch: 10 }, { wch: 16 }, { wch: 16 }, { wch: 10 }, { wch: 16 }]
+      XLSX.utils.book_append_sheet(wb, wsProducts, 'Product Breakdown')
+
+      XLSX.writeFile(wb, `millino-chops_${period}_${date}.xlsx`)
+      setExportMsg('✓ Excel file downloaded')
+    } catch (err) {
+      setExportMsg('✗ Export failed: ' + (err as Error).message)
+    }
+    setTimeout(() => setExportMsg(''), 3000)
+  }
+
+  const top8 = products.slice(0, 8)
   const normalTotal   = products.reduce((s, p) => s + p.normalSales, 0)
   const discountTotal = products.reduce((s, p) => s + p.discountSales, 0)
-  const freeTotal     = products.reduce((s, p) => s + p.freeQty * 0, 0) // value given free
   const pieData = [
     { name: 'Normal Sales',   value: parseFloat(normalTotal.toFixed(2)),   fill: '#F05A28' },
     { name: 'Discount Sales', value: parseFloat(discountTotal.toFixed(2)), fill: '#F59E0B' },
@@ -67,8 +134,14 @@ export default function ReportsPage() {
           <h1 style={{ fontWeight: 900, fontSize: '1.75rem', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>Reports</h1>
           <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4 }}>Sales analytics & product breakdown</p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {products.length > 0 && <button onClick={exportCSV} className="btn btn-outline btn-sm">⬇ CSV</button>}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {exportMsg && (
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: exportMsg.startsWith('✓') ? 'var(--green)' : exportMsg.startsWith('✗') ? 'var(--red)' : 'var(--text-3)' }}>
+              {exportMsg}
+            </span>
+          )}
+          <button onClick={exportCSV} disabled={!products.length} className="btn btn-outline btn-sm">⬇ CSV</button>
+          <button onClick={exportExcel} disabled={!products.length} className="btn btn-outline btn-sm">⬇ Excel</button>
           <button onClick={() => window.print()} className="btn btn-ghost btn-sm">🖨 Print</button>
           <button onClick={load} disabled={loading} className="btn btn-primary btn-sm">{loading ? '…' : '↻ Refresh'}</button>
         </div>
@@ -105,12 +178,13 @@ export default function ReportsPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>Loading charts…</div>
       ) : products.length === 0 ? (
-        <div style={{ ...cardStyle, textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>No sales data for this period</div>
+        <div style={{ ...cardStyle, textAlign: 'center', padding: '4rem', color: 'var(--text-3)' }}>
+          No sales data for this period — nothing to export yet
+        </div>
       ) : (
         <>
           {/* Charts row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 16, marginBottom: '1.5rem' }}>
-            {/* Bar chart — top products */}
             <div style={cardStyle}>
               <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, fontSize: '0.9rem' }}>Top Products by Revenue</div>
               <ResponsiveContainer width="100%" height={220}>
@@ -128,7 +202,6 @@ export default function ReportsPage() {
               </ResponsiveContainer>
             </div>
 
-            {/* Pie chart — sales by type */}
             {pieData.length > 0 && (
               <div style={{ ...cardStyle, minWidth: 240 }}>
                 <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: 16, fontSize: '0.9rem' }}>Sales by Type</div>
