@@ -157,17 +157,20 @@ body {
   }
 }
 
+/* ── Thermal receipt printing (POS only) ──
+   Scoped via body.printing-receipt class (toggled in JS) so this
+   NEVER affects other pages like Reports, Orders, Products, etc.
+   Using a JS-toggled class instead of :has() for maximum browser
+   compatibility across all printers/browsers. */
 @media print {
-  /* Hide EVERYTHING on the page */
-  * { visibility: hidden !important; }
+  body.printing-receipt * { visibility: hidden !important; }
 
-  /* Show only the thermal receipt */
-  #receipt-print,
-  #receipt-print * {
+  body.printing-receipt #receipt-print,
+  body.printing-receipt #receipt-print * {
     visibility: visible !important;
   }
 
-  #receipt-print {
+  body.printing-receipt #receipt-print {
     position: fixed !important;
     left: 0 !important;
     top: 0 !important;
@@ -181,8 +184,7 @@ body {
     margin: 0 !important;
   }
 
-  /* Strip all color — pure black on white */
-  #receipt-print * {
+  body.printing-receipt #receipt-print * {
     color: #000 !important;
     background: transparent !important;
     background-color: transparent !important;
@@ -191,5 +193,33 @@ body {
     text-shadow: none !important;
   }
 
-  #page { size: 80mm auto; margin: 0; }
+  @page { size: 80mm auto; margin: 0; }
+}
+
+/* ── General page printing (Reports, Orders, Dashboard, etc.) ──
+   Hide navigation/UI chrome, keep page content readable in print.
+   Only applies when body does NOT have .printing-receipt. */
+@media print {
+  body:not(.printing-receipt) {
+    background: #fff !important;
+  }
+  /* Hide anything explicitly marked no-print: sidebars, buttons, filters */
+  body:not(.printing-receipt) .no-print {
+    display: none !important;
+  }
+  /* Flatten cards for clean print output */
+  body:not(.printing-receipt) .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+  body:not(.printing-receipt) table {
+    page-break-inside: auto;
+  }
+  body:not(.printing-receipt) tr {
+    page-break-inside: avoid;
+  }
+  /* Show print-only elements (hidden on screen) */
+  body:not(.printing-receipt) .print-only {
+    display: block !important;
+  }
 }

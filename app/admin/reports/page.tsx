@@ -128,8 +128,19 @@ export default function ReportsPage() {
 
   return (
     <div style={{ padding: '2rem', maxWidth: 1100, margin: '0 auto' }}>
+      {/* Print-only header — shown only when printing, gives clean context */}
+      <div className="print-only" style={{ display: 'none', marginBottom: '1rem' }}>
+        <div style={{ fontWeight: 900, fontSize: '1.4rem', color: '#000' }}>MILLINO CHOPS</div>
+        <div style={{ fontSize: '0.9rem', color: '#333', marginTop: 2 }}>
+          Sales Report — {period.charAt(0).toUpperCase() + period.slice(1)} — {date}
+        </div>
+        <div style={{ fontSize: '0.8rem', color: '#555', marginTop: 2 }}>
+          {orderCount} completed order{orderCount !== 1 ? 's' : ''} · Generated {new Date().toLocaleString('en-GH', { dateStyle: 'medium', timeStyle: 'short' })}
+        </div>
+      </div>
+
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 12 }}>
+      <div className="no-print" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.75rem', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontWeight: 900, fontSize: '1.75rem', color: 'var(--text-1)', letterSpacing: '-0.02em' }}>Reports</h1>
           <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4 }}>Sales analytics & product breakdown</p>
@@ -148,7 +159,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Period controls */}
-      <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 16, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+      <div className="no-print" style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 16, marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['daily','weekly','monthly','yearly'] as Period[]).map(p => (
             <button key={p} onClick={() => setPeriod(p)} className="btn btn-sm" style={{

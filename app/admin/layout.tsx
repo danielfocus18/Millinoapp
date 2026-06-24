@@ -31,8 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative' }}>
 
       {/* ── Desktop sidebar (always visible ≥768px) ── */}
-      <div style={{ display: 'none', width: 220, flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}
-        className="md:block">
+      <div className="md:block no-print" style={{ display: 'none', width: 220, flexShrink: 0, position: 'sticky', top: 0, height: '100vh' }}>
         <Sidebar userName={userName} />
       </div>
 
@@ -55,8 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'var(--surface)' }}>
 
         {/* Mobile top bar */}
-        <header style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.875rem 1.25rem', background: 'var(--ink)', borderBottom: '1px solid rgba(255,255,255,0.07)', position: 'sticky', top: 0, zIndex: 30 }}
-          className="md:hidden">
+        <header className="md:hidden no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.875rem 1.25rem', background: 'var(--ink)', borderBottom: '1px solid rgba(255,255,255,0.07)', position: 'sticky', top: 0, zIndex: 30 }}>
           <button
             onClick={() => setSidebarOpen(true)}
             style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', width: 36, height: 36, borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>

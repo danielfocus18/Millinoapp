@@ -70,6 +70,17 @@ export default function POSPage() {
 
   useEffect(() => { if (pricingType === 'discount') discountRef.current?.focus() }, [pricingType])
 
+  // Toggle a body class only while the receipt screen is showing,
+  // so the receipt-only print CSS never leaks onto other pages.
+  useEffect(() => {
+    if (receipt) {
+      document.body.classList.add('printing-receipt')
+    } else {
+      document.body.classList.remove('printing-receipt')
+    }
+    return () => { document.body.classList.remove('printing-receipt') }
+  }, [receipt])
+
   const filtered = products.filter(p => {
     const matchCat = !selectedCat || p.category_id === selectedCat
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
