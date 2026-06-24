@@ -2,6 +2,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend, LineChart, Line, CartesianGrid } from 'recharts'
 import * as XLSX from 'xlsx'
+import {
+  ChartBar, Tag, Banknote, Receipt, Gift, Wallet, TrendingUp,
+  Download, Printer, RefreshCw, CheckCircle2, XCircle,
+} from 'lucide-react'
 
 type Period = 'daily' | 'weekly' | 'monthly' | 'yearly'
 interface Summary { grossSales: number; discountImpact: number; netSales: number; freeValue: number; totalExpenses: number; netProfit: number; avgOrderValue: number }
@@ -10,6 +14,7 @@ interface CategoryRow { name: string; qty: number; revenue: number }
 interface PaymentRow { method: string; revenue: number; count: number }
 interface CashierRow { name: string; revenue: number; orders: number }
 interface TrendPoint { label: string; revenue: number }
+interface Msg { type: 'success' | 'error'; text: string }
 
 const COLORS = ['#F05A28','#F59E0B','#16A34A','#8B5CF6','#0284C7','#EC4899','#14B8A6','#F97316']
 const CAT_COLORS: Record<string, string> = { Meals: '#F05A28', Pastries: '#F59E0B', Drinks: '#0284C7' }
@@ -27,7 +32,7 @@ export default function ReportsPage() {
   const [trendGranularity, setTrendGranularity] = useState('hour')
   const [orderCount, setOrderCount] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [exportMsg, setExportMsg] = useState('')
+  const [exportMsg, setExportMsg] = useState<Msg | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -56,19 +61,19 @@ export default function ReportsPage() {
   }
 
   function exportCSV() {
-    if (!products.length) { setExportMsg('No data to export'); setTimeout(() => setExportMsg(''), 3000); return }
+    if (!products.length) { setExportMsg({ type: 'error', text: 'No data to export' }); setTimeout(() => setExportMsg(null), 3000); return }
     try {
       const header = 'Product,Qty Sold,Normal Sales (GH₵),Discount Sales (GH₵),Free Qty,Total Revenue (GH₵)'
       const rows = products.map(p => `"${p.name.replace(/"/g, '""')}",${p.qty},${p.normalSales.toFixed(2)},${p.discountSales.toFixed(2)},${p.freeQty},${p.totalRevenue.toFixed(2)}`)
       const csv = '\uFEFF' + [header, ...rows].join('\r\n')
       downloadFile(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), `millino-chops_${period}_${date}.csv`)
-      setExportMsg('✓ CSV downloaded')
-    } catch (err) { setExportMsg('✗ ' + (err as Error).message) }
-    setTimeout(() => setExportMsg(''), 3000)
+      setExportMsg({ type: 'success', text: 'CSV downloaded' })
+    } catch (err) { setExportMsg({ type: 'error', text: (err as Error).message }) }
+    setTimeout(() => setExportMsg(null), 3000)
   }
 
   function exportExcel() {
-    if (!products.length) { setExportMsg('No data to export'); setTimeout(() => setExportMsg(''), 3000); return }
+    if (!products.length) { setExportMsg({ type: 'error', text: 'No data to export' }); setTimeout(() => setExportMsg(null), 3000); return }
     try {
       const wb = XLSX.utils.book_new()
       if (summary) {
@@ -105,9 +110,9 @@ export default function ReportsPage() {
       }
 
       XLSX.writeFile(wb, `millino-chops_${period}_${date}.xlsx`)
-      setExportMsg('✓ Excel file downloaded')
-    } catch (err) { setExportMsg('✗ ' + (err as Error).message) }
-    setTimeout(() => setExportMsg(''), 3000)
+      setExportMsg({ type: 'success', text: 'Excel file downloaded' })
+    } catch (err) { setExportMsg({ type: 'error', text: (err as Error).message }) }
+    setTimeout(() => setExportMsg(null), 3000)
   }
 
   const top8 = products.slice(0, 8)
@@ -120,13 +125,13 @@ export default function ReportsPage() {
   ].filter(d => d.value > 0)
 
   const summaryCards = summary ? [
-    { label: 'Gross Sales',    value: `GH₵${summary.grossSales.toFixed(2)}`,    icon: '📊', color: 'var(--orange)', note: 'Before discounts' },
-    { label: 'Discounts',      value: `GH₵${summary.discountImpact.toFixed(2)}`,icon: '🏷️', color: 'var(--amber)',  note: 'Total discounted' },
-    { label: 'Net Sales',      value: `GH₵${summary.netSales.toFixed(2)}`,       icon: '💰', color: 'var(--green)',  note: 'Collected' },
-    { label: 'Avg Order Value',value: `GH₵${summary.avgOrderValue.toFixed(2)}`,  icon: '🧾', color: '#0284C7',       note: `Across ${orderCount} orders` },
-    { label: 'Free Items',     value: `GH₵${summary.freeValue.toFixed(2)}`,      icon: '🎁', color: '#8B5CF6',       note: 'Complimentary' },
-    { label: 'Expenses',       value: `GH₵${summary.totalExpenses.toFixed(2)}`,  icon: '💸', color: 'var(--red)',    note: 'Business costs' },
-    { label: 'Net Profit',     value: `GH₵${summary.netProfit.toFixed(2)}`,      icon: '📈', color: summary.netProfit >= 0 ? 'var(--green)' : 'var(--red)', note: 'Revenue − Costs' },
+    { label: 'Gross Sales',    value: `GH₵${summary.grossSales.toFixed(2)}`,    icon: ChartBar,  color: 'var(--orange)', note: 'Before discounts' },
+    { label: 'Discounts',      value: `GH₵${summary.discountImpact.toFixed(2)}`,icon: Tag,        color: 'var(--amber)',  note: 'Total discounted' },
+    { label: 'Net Sales',      value: `GH₵${summary.netSales.toFixed(2)}`,       icon: Banknote,   color: 'var(--green)',  note: 'Collected' },
+    { label: 'Avg Order Value',value: `GH₵${summary.avgOrderValue.toFixed(2)}`,  icon: Receipt,    color: '#0284C7',       note: `Across ${orderCount} orders` },
+    { label: 'Free Items',     value: `GH₵${summary.freeValue.toFixed(2)}`,      icon: Gift,       color: '#8B5CF6',       note: 'Complimentary' },
+    { label: 'Expenses',       value: `GH₵${summary.totalExpenses.toFixed(2)}`,  icon: Wallet,     color: 'var(--red)',    note: 'Business costs' },
+    { label: 'Net Profit',     value: `GH₵${summary.netProfit.toFixed(2)}`,      icon: TrendingUp, color: summary.netProfit >= 0 ? 'var(--green)' : 'var(--red)', note: 'Revenue − Costs' },
   ] : []
 
   const cardStyle: React.CSSProperties = { background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14, padding: '1.125rem 1rem' }
@@ -153,11 +158,24 @@ export default function ReportsPage() {
           <p style={{ color: 'var(--text-3)', fontSize: '0.875rem', marginTop: 4 }}>Sales analytics & product breakdown</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {exportMsg && <span style={{ fontSize: '0.8rem', fontWeight: 700, color: exportMsg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{exportMsg}</span>}
-          <button onClick={exportCSV} disabled={!products.length} className="btn btn-outline btn-sm">⬇ CSV</button>
-          <button onClick={exportExcel} disabled={!products.length} className="btn btn-outline btn-sm">⬇ Excel</button>
-          <button onClick={() => window.print()} className="btn btn-ghost btn-sm">🖨 Print</button>
-          <button onClick={load} disabled={loading} className="btn btn-primary btn-sm">{loading ? '…' : '↻ Refresh'}</button>
+          {exportMsg && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.8rem', fontWeight: 700, color: exportMsg.type === 'success' ? 'var(--green)' : 'var(--red)' }}>
+              {exportMsg.type === 'success' ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+              {exportMsg.text}
+            </span>
+          )}
+          <button onClick={exportCSV} disabled={!products.length} className="btn btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Download size={14} /> CSV
+          </button>
+          <button onClick={exportExcel} disabled={!products.length} className="btn btn-outline btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Download size={14} /> Excel
+          </button>
+          <button onClick={() => window.print()} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Printer size={14} /> Print
+          </button>
+          <button onClick={load} disabled={loading} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            {loading ? '…' : <><RefreshCw size={14} /> Refresh</>}
+          </button>
         </div>
       </div>
 
@@ -177,14 +195,17 @@ export default function ReportsPage() {
 
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
-        {summaryCards.map(s => (
-          <div key={s.label} style={cardStyle}>
-            <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{s.icon}</div>
-            <div style={{ fontWeight: 900, fontSize: '1.25rem', color: s.color, lineHeight: 1 }}>{s.value}</div>
-            <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-2)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
-            <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 2 }}>{s.note}</div>
-          </div>
-        ))}
+        {summaryCards.map(s => {
+          const Icon = s.icon
+          return (
+            <div key={s.label} style={cardStyle}>
+              <Icon size={24} color={s.color} strokeWidth={2} style={{ marginBottom: 8 }} />
+              <div style={{ fontWeight: 900, fontSize: '1.25rem', color: s.color, lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-2)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-3)', marginTop: 2 }}>{s.note}</div>
+            </div>
+          )
+        })}
       </div>
 
       {loading ? (

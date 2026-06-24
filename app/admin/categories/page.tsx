@@ -1,14 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { Pencil, Plus, CheckCircle2, XCircle, Tags } from 'lucide-react'
 
 interface Category { id: string; name: string }
+interface Msg { type: 'success' | 'error'; text: string }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [name, setName] = useState('')
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState<Msg | null>(null)
 
   async function load() {
     const r = await fetch('/api/categories')
@@ -20,22 +22,22 @@ export default function CategoriesPage() {
 
   async function handleSave() {
     if (!name.trim()) return
-    setSaving(true); setMsg('')
+    setSaving(true); setMsg(null)
     const res = editId
       ? await fetch(`/api/categories/${editId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
       : await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }) })
     const d = await res.json()
-    if (d.error) { setMsg('✗ ' + d.error) }
-    else { setMsg(editId ? '✓ Updated' : '✓ Added'); setName(''); setEditId(null); load() }
-    setSaving(false); setTimeout(() => setMsg(''), 3000)
+    if (d.error) { setMsg({ type: 'error', text: d.error }) }
+    else { setMsg({ type: 'success', text: editId ? 'Updated' : 'Added' }); setName(''); setEditId(null); load() }
+    setSaving(false); setTimeout(() => setMsg(null), 3000)
   }
 
   async function handleDelete(id: string, catName: string) {
     if (!confirm(`Delete "${catName}"? Products will be uncategorised.`)) return
     const d = await fetch(`/api/categories/${id}`, { method: 'DELETE' }).then(r => r.json())
-    if (d.error) setMsg('✗ ' + d.error)
-    else { setMsg('✓ Deleted'); load() }
-    setTimeout(() => setMsg(''), 3000)
+    if (d.error) setMsg({ type: 'error', text: d.error })
+    else { setMsg({ type: 'success', text: 'Deleted' }); load() }
+    setTimeout(() => setMsg(null), 3000)
   }
 
   const S = {
@@ -55,8 +57,9 @@ export default function CategoriesPage() {
       <p style={S.sub}>Organise your menu into groups</p>
 
       <div style={S.form}>
-        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-2)', marginBottom: 10 }}>
-          {editId ? '✏️ Edit Category' : '＋ New Category'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-2)', marginBottom: 10 }}>
+          {editId ? <Pencil size={14} /> : <Plus size={14} />}
+          {editId ? 'Edit Category' : 'New Category'}
         </div>
         <div style={S.row}>
           <input value={name} onChange={e => setName(e.target.value)}
@@ -67,7 +70,12 @@ export default function CategoriesPage() {
           </button>
           {editId && <button onClick={() => { setEditId(null); setName('') }} className="btn btn-ghost">Cancel</button>}
         </div>
-        {msg && <div style={{ marginTop: 8, fontSize: '0.85rem', fontWeight: 700, color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)' }}>{msg}</div>}
+        {msg && (
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', fontWeight: 700, color: msg.type === 'success' ? 'var(--green)' : 'var(--red)' }}>
+            {msg.type === 'success' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+            {msg.text}
+          </div>
+        )}
       </div>
 
       <div style={S.list}>
@@ -76,7 +84,10 @@ export default function CategoriesPage() {
           <span style={{ background: '#FFF8F5', color: 'var(--orange)', fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.6rem', borderRadius: 999 }}>{categories.length}</span>
         </div>
         {categories.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)' }}>No categories yet</div>
+          <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+            <Tags size={32} strokeWidth={1.5} />
+            No categories yet
+          </div>
         ) : categories.map((c, i) => (
           <div key={c.id} style={S.item(i)}>
             <div style={S.avatar}>{c.name[0].toUpperCase()}</div>

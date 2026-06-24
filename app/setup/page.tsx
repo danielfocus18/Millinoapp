@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { UserCog, User, AlertTriangle, CheckCircle2, XCircle, ArrowRight } from 'lucide-react'
 
 interface AuthUser {
   id: string
@@ -18,11 +19,12 @@ interface SetupState {
   loaded: boolean
   error: string
 }
+interface Msg { type: 'success' | 'error'; text: string }
 
 export default function SetupPage() {
   const [state, setState] = useState<SetupState>({ authUsers: [], profileUsers: [], loaded: false, error: '' })
   const [saving, setSaving] = useState<string | null>(null)
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState<Msg | null>(null)
 
   async function loadData() {
     const res = await fetch('/api/setup')
@@ -37,7 +39,7 @@ export default function SetupPage() {
   useEffect(() => { loadData() }, [])
 
   async function setRole(userId: string, email: string, role: 'manager' | 'cashier') {
-    setSaving(userId); setMsg('')
+    setSaving(userId); setMsg(null)
     const res = await fetch('/api/setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -45,13 +47,13 @@ export default function SetupPage() {
     })
     const data = await res.json()
     if (data.error) {
-      setMsg('✗ ' + data.error)
+      setMsg({ type: 'error', text: data.error })
     } else {
-      setMsg(`✓ ${email} set as ${role}`)
+      setMsg({ type: 'success', text: `${email} set as ${role}` })
       loadData()
     }
     setSaving(null)
-    setTimeout(() => setMsg(''), 4000)
+    setTimeout(() => setMsg(null), 4000)
   }
 
   const { authUsers, profileUsers, loaded, error } = state
@@ -80,17 +82,21 @@ export default function SetupPage() {
           <div className="text-sm space-y-1" style={{ color: '#A8A29E', lineHeight: 1.7 }}>
             <div>1. Your Supabase Auth users appear below</div>
             <div>2. Click <strong style={{ color: '#fff' }}>Set as Manager</strong> or <strong style={{ color: '#fff' }}>Set as Cashier</strong> to assign roles</div>
-            <div>3. Managers sign in → <strong style={{ color: '#FDA274' }}>/admin</strong> dashboard</div>
-            <div>4. Cashiers sign in → <strong style={{ color: '#FDA274' }}>/pos</strong> terminal</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>3. Managers sign in <ArrowRight size={13} /> <strong style={{ color: '#FDA274' }}>/admin</strong> dashboard</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>4. Cashiers sign in <ArrowRight size={13} /> <strong style={{ color: '#FDA274' }}>/pos</strong> terminal</div>
           </div>
         </div>
 
         {msg && (
           <div className="mb-5 px-4 py-3 rounded-lg text-sm font-medium" style={{
-            background: msg.startsWith('✓') ? '#F0FDF4' : '#FEF2F2',
-            color: msg.startsWith('✓') ? '#15803D' : '#DC2626',
-            border: `1px solid ${msg.startsWith('✓') ? '#BBF7D0' : '#FECACA'}`
-          }}>{msg}</div>
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: msg.type === 'success' ? '#F0FDF4' : '#FEF2F2',
+            color: msg.type === 'success' ? '#15803D' : '#DC2626',
+            border: `1px solid ${msg.type === 'success' ? '#BBF7D0' : '#FECACA'}`
+          }}>
+            {msg.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+            {msg.text}
+          </div>
         )}
 
         {/* Users list */}
@@ -125,14 +131,17 @@ export default function SetupPage() {
                         <div className="mt-2">
                           {profile ? (
                             <span className="text-xs px-2.5 py-1 rounded-full font-bold" style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
                               background: profile.role === 'manager' ? 'rgba(234,88,12,0.20)' : 'rgba(255,255,255,0.08)',
                               color: profile.role === 'manager' ? '#FDA274' : '#A8A29E',
                             }}>
-                              {profile.role === 'manager' ? '👨‍💼 Manager' : '🧑‍💻 Cashier'} — {profile.name}
+                              {profile.role === 'manager' ? <UserCog size={13} /> : <User size={13} />}
+                              {profile.role === 'manager' ? 'Manager' : 'Cashier'} — {profile.name}
                             </span>
                           ) : (
-                            <span className="text-xs px-2.5 py-1 rounded-full font-bold" style={{ background: '#FEF2F2', color: '#DC2626' }}>
-                              ⚠ No profile — must assign a role
+                            <span className="text-xs px-2.5 py-1 rounded-full font-bold" style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: '#FEF2F2', color: '#DC2626' }}>
+                              <AlertTriangle size={13} />
+                              No profile — must assign a role
                             </span>
                           )}
                         </div>
@@ -142,17 +151,17 @@ export default function SetupPage() {
                           onClick={() => setRole(u.id, u.email, 'manager')}
                           disabled={saving === u.id}
                           className="btn btn-sm"
-                          style={{ background: profile?.role === 'manager' ? 'var(--brand-orange)' : 'transparent', color: profile?.role === 'manager' ? '#fff' : '#FDA274', border: '1.5px solid #EA580C' }}
+                          style={{ background: profile?.role === 'manager' ? 'var(--brand-orange)' : 'transparent', color: profile?.role === 'manager' ? '#fff' : '#FDA274', border: '1.5px solid #EA580C', display: 'flex', alignItems: 'center', gap: 5 }}
                         >
-                          {saving === u.id ? '…' : '👨‍💼 Manager'}
+                          {saving === u.id ? '…' : <><UserCog size={14} /> Manager</>}
                         </button>
                         <button
                           onClick={() => setRole(u.id, u.email, 'cashier')}
                           disabled={saving === u.id}
                           className="btn btn-sm"
-                          style={{ background: profile?.role === 'cashier' ? 'rgba(255,255,255,0.15)' : 'transparent', color: '#A8A29E', border: '1.5px solid rgba(255,255,255,0.15)' }}
+                          style={{ background: profile?.role === 'cashier' ? 'rgba(255,255,255,0.15)' : 'transparent', color: '#A8A29E', border: '1.5px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', gap: 5 }}
                         >
-                          {saving === u.id ? '…' : '🧑‍💻 Cashier'}
+                          {saving === u.id ? '…' : <><User size={14} /> Cashier</>}
                         </button>
                       </div>
                     </div>
@@ -164,8 +173,8 @@ export default function SetupPage() {
         </div>
 
         <div className="mt-6 text-center">
-          <a href="/login" className="btn btn-sm" style={{ background: 'var(--brand-orange)', color: '#fff' }}>
-            → Go to Login
+          <a href="/login" className="btn btn-sm" style={{ background: 'var(--brand-orange)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Go to Login <ArrowRight size={14} />
           </a>
         </div>
 

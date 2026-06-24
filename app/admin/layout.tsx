@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { getProfile } from '@/lib/getProfile'
+import { Menu } from 'lucide-react'
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -57,8 +58,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <header className="md:hidden no-print" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '0.875rem 1.25rem', background: 'var(--ink)', borderBottom: '1px solid rgba(255,255,255,0.07)', position: 'sticky', top: 0, zIndex: 30 }}>
           <button
             onClick={() => setSidebarOpen(true)}
-            style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', width: 36, height: 36, borderRadius: 8, cursor: 'pointer', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            ☰
+            style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#fff', width: 36, height: 36, borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Menu size={20} />
           </button>
           <img src="/logo.png" alt="Millino Chops" style={{ width: 28, height: 28, objectFit: 'contain' }} />
           <div style={{ fontWeight: 900, color: '#fff', fontSize: '0.9rem', letterSpacing: '0.04em' }}>MILLINO CHOPS</div>

@@ -2,6 +2,10 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid } from 'recharts'
+import {
+  Wallet, Receipt, Tag, Banknote, TrendingUp, AlertTriangle, Zap,
+  ShoppingCart, Package, Tags, ChartBar,
+} from 'lucide-react'
 
 interface Stats {
   todayRevenue: number; todayOrders: number; todayDiscount: number
@@ -23,7 +27,6 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function loadAll() {
-      // Today's report
       const [reportRes, prodRes, weekRes] = await Promise.all([
         fetch('/api/reports?period=daily').then(r => r.json()).catch(() => ({})),
         fetch('/api/products').then(r => r.json()).catch(() => ({ products: [] })),
@@ -42,24 +45,15 @@ export default function AdminDashboard() {
         netProfit: reportRes.summary?.netProfit ?? 0,
       })
 
-      // Top products from today
       const topP = (reportRes.products ?? []).slice(0, 6)
       setTopProducts(topP)
 
-      // Build last-7-days data from weekly report
-      // We'll generate per-day labels
       const days: { day: string; revenue: number }[] = []
       for (let i = 6; i >= 0; i--) {
         const d = new Date()
         d.setDate(d.getDate() - i)
-        days.push({
-          day: d.toLocaleDateString('en-GH', { weekday: 'short' }),
-          revenue: 0,
-        })
+        days.push({ day: d.toLocaleDateString('en-GH', { weekday: 'short' }), revenue: 0 })
       }
-      // Fill with weekly total spread evenly as placeholder until daily breakdown API exists
-      const weekRevenue = weekRes.summary?.netSales ?? 0
-      // Just show the week total on the last bar for now — real per-day needs a date-range query
       if (days.length > 0) {
         days[days.length - 1].revenue = parseFloat((reportRes.summary?.netSales ?? 0).toFixed(2))
       }
@@ -73,9 +67,7 @@ export default function AdminDashboard() {
     setSeeding(true); setSeedMsg('')
     const r = await fetch('/api/seed', { method: 'POST' })
     const d = await r.json()
-    setSeedMsg(d.success
-      ? `✓ ${d.summary?.inserted ?? 0} products added`
-      : '✗ ' + (d.error ?? 'Failed'))
+    setSeedMsg(d.success ? `Seeded ${d.summary?.inserted ?? 0} products` : (d.error ?? 'Failed'))
     setSeeding(false)
     if (d.success) {
       const pd = await fetch('/api/products').then(r => r.json())
@@ -87,12 +79,12 @@ export default function AdminDashboard() {
   }
 
   const navCards = [
-    { href: '/pos',              icon: '🛒', label: 'POS Terminal',  desc: 'Take orders'         },
-    { href: '/admin/orders',     icon: '🧾', label: 'Orders',        desc: 'Sales history'       },
-    { href: '/admin/products',   icon: '📦', label: 'Products',      desc: 'Menu & stock'        },
-    { href: '/admin/categories', icon: '🏷️', label: 'Categories',   desc: 'Meals, Drinks…'      },
-    { href: '/admin/expenses',   icon: '💸', label: 'Expenses',      desc: 'Record costs'        },
-    { href: '/admin/reports',    icon: '📈', label: 'Reports',       desc: 'Full analytics'      },
+    { href: '/pos',              icon: ShoppingCart, label: 'POS Terminal', desc: 'Take orders'    },
+    { href: '/admin/orders',     icon: Receipt,       label: 'Orders',       desc: 'Sales history'  },
+    { href: '/admin/products',   icon: Package,       label: 'Products',     desc: 'Menu & stock'   },
+    { href: '/admin/categories', icon: Tags,           label: 'Categories',   desc: 'Meals, Drinks…' },
+    { href: '/admin/expenses',   icon: Wallet,         label: 'Expenses',     desc: 'Record costs'   },
+    { href: '/admin/reports',    icon: ChartBar,       label: 'Reports',      desc: 'Full analytics' },
   ]
 
   const card: React.CSSProperties = { background: '#fff', border: '1.5px solid var(--border)', borderRadius: 14 }
@@ -120,15 +112,15 @@ export default function AdminDashboard() {
               <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-1)' }}>Menu is empty!</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-3)', marginTop: 2 }}>Load 29 Millino Chops products</div>
             </div>
-            <button onClick={handleSeed} disabled={seeding} className="btn btn-primary btn-sm">
-              {seeding ? 'Loading…' : '⚡ Seed Menu'}
+            <button onClick={handleSeed} disabled={seeding} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={15} /> {seeding ? 'Loading…' : 'Seed Menu'}
             </button>
           </div>
         )}
       </div>
 
       {seedMsg && (
-        <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', borderRadius: 10, fontWeight: 700, fontSize: '0.875rem', background: seedMsg.startsWith('✓') ? '#F0FDF4' : '#FEF2F2', color: seedMsg.startsWith('✓') ? 'var(--green)' : 'var(--red)', border: `1.5px solid ${seedMsg.startsWith('✓') ? '#BBF7D0' : '#FECACA'}` }}>
+        <div style={{ marginBottom: '1.25rem', padding: '0.75rem 1rem', borderRadius: 10, fontWeight: 700, fontSize: '0.875rem', background: '#F0FDF4', color: 'var(--green)', border: '1.5px solid #BBF7D0' }}>
           {seedMsg}
         </div>
       )}
@@ -137,25 +129,27 @@ export default function AdminDashboard() {
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(148px, 1fr))', gap: 12, marginBottom: '1.5rem' }}>
           {[
-            { label: "Today's Revenue",  value: `GH₵${stats.todayRevenue.toFixed(2)}`,  icon: '💰', color: 'var(--green)'  },
-            { label: "Today's Orders",   value: stats.todayOrders,                       icon: '🧾', color: 'var(--orange)' },
-            { label: 'Discount Given',   value: `GH₵${stats.todayDiscount.toFixed(2)}`,  icon: '🏷️', color: 'var(--amber)'  },
-            { label: "Expenses",         value: `GH₵${stats.todayExpenses.toFixed(2)}`,  icon: '💸', color: 'var(--red)'   },
-            { label: 'Net Profit',       value: `GH₵${stats.netProfit.toFixed(2)}`,       icon: '📈', color: stats.netProfit >= 0 ? 'var(--green)' : 'var(--red)' },
-            { label: 'Low Stock Items',  value: stats.lowStock,                           icon: '⚠️', color: stats.lowStock > 0 ? 'var(--red)' : 'var(--text-3)' },
-          ].map(s => (
-            <div key={s.label} style={{ ...card, padding: '1.125rem 1rem' }}>
-              <div style={{ fontSize: '1.6rem', marginBottom: 8 }}>{s.icon}</div>
-              <div style={{ fontWeight: 900, fontSize: '1.3rem', color: s.color, lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-3)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
-            </div>
-          ))}
+            { label: "Today's Revenue",  value: `GH₵${stats.todayRevenue.toFixed(2)}`,  icon: Banknote,      color: 'var(--green)'  },
+            { label: "Today's Orders",   value: stats.todayOrders,                       icon: Receipt,        color: 'var(--orange)' },
+            { label: 'Discount Given',   value: `GH₵${stats.todayDiscount.toFixed(2)}`,  icon: Tag,            color: 'var(--amber)'  },
+            { label: "Expenses",         value: `GH₵${stats.todayExpenses.toFixed(2)}`,  icon: Wallet,         color: 'var(--red)'   },
+            { label: 'Net Profit',       value: `GH₵${stats.netProfit.toFixed(2)}`,       icon: TrendingUp,     color: stats.netProfit >= 0 ? 'var(--green)' : 'var(--red)' },
+            { label: 'Low Stock Items',  value: stats.lowStock,                           icon: AlertTriangle,  color: stats.lowStock > 0 ? 'var(--red)' : 'var(--text-3)' },
+          ].map(s => {
+            const Icon = s.icon
+            return (
+              <div key={s.label} style={{ ...card, padding: '1.125rem 1rem' }}>
+                <Icon size={26} color={s.color} strokeWidth={2} style={{ marginBottom: 8 }} />
+                <div style={{ fontWeight: 900, fontSize: '1.3rem', color: s.color, lineHeight: 1 }}>{s.value}</div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-3)', marginTop: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+              </div>
+            )
+          })}
         </div>
       )}
 
       {/* Charts row */}
       <div style={{ display: 'grid', gridTemplateColumns: topProducts.length > 0 ? '1fr 300px' : '1fr', gap: 16, marginBottom: '1.5rem' }}>
-        {/* Revenue line chart - last 7 days */}
         <div style={{ ...card, padding: '1.25rem' }}>
           <div style={{ fontWeight: 800, color: 'var(--text-1)', fontSize: '0.9rem', marginBottom: 16 }}>Revenue — Last 7 Days</div>
           {weekData.every(d => d.revenue === 0) ? (
@@ -176,7 +170,6 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        {/* Top products bar chart */}
         {topProducts.length > 0 && (
           <div style={{ ...card, padding: '1.25rem' }}>
             <div style={{ fontWeight: 800, color: 'var(--text-1)', fontSize: '0.9rem', marginBottom: 16 }}>Top Products Today</div>
@@ -200,19 +193,22 @@ export default function AdminDashboard() {
       <div style={{ ...card, padding: '1.25rem' }}>
         <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>Quick Actions</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
-          {navCards.map(n => (
-            <button key={n.href} onClick={() => router.push(n.href)} style={{
-              display: 'flex', flexDirection: 'column', gap: 6, padding: '1rem', borderRadius: 12,
-              background: 'var(--surface)', border: '1.5px solid var(--border)',
-              cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--orange)'; (e.currentTarget as HTMLElement).style.background = '#FFF8F5' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface)' }}>
-              <span style={{ fontSize: '1.5rem' }}>{n.icon}</span>
-              <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-1)' }}>{n.label}</span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>{n.desc}</span>
-            </button>
-          ))}
+          {navCards.map(n => {
+            const Icon = n.icon
+            return (
+              <button key={n.href} onClick={() => router.push(n.href)} style={{
+                display: 'flex', flexDirection: 'column', gap: 6, padding: '1rem', borderRadius: 12,
+                background: 'var(--surface)', border: '1.5px solid var(--border)',
+                cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--orange)'; (e.currentTarget as HTMLElement).style.background = '#FFF8F5' }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; (e.currentTarget as HTMLElement).style.background = 'var(--surface)' }}>
+                <Icon size={22} color="var(--orange)" strokeWidth={2} />
+                <span style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-1)' }}>{n.label}</span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>{n.desc}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

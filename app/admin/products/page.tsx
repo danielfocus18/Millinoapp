@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { Pencil, Plus, X, CheckCircle2, XCircle, Package } from 'lucide-react'
 
 interface Product { id: string; name: string; sku: string; price: number; stock: number; category_id?: string; description?: string }
 interface Category { id: string; name: string }
+interface Msg { type: 'success' | 'error'; text: string }
 const empty = { name: '', sku: '', price: '', stock: '', category_id: '', description: '' }
 
 export default function ProductsPage() {
@@ -13,7 +15,7 @@ export default function ProductsPage() {
   const [saving, setSaving] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [search, setSearch] = useState('')
-  const [msg, setMsg] = useState('')
+  const [msg, setMsg] = useState<Msg | null>(null)
 
   async function load() {
     const [pd, cd] = await Promise.all([
@@ -34,25 +36,25 @@ export default function ProductsPage() {
   }
 
   async function handleSave() {
-    if (!form.name.trim() || !form.sku.trim() || !form.price) { setMsg('✗ Name, SKU and Price are required'); return }
-    setSaving(true); setMsg('')
+    if (!form.name.trim() || !form.sku.trim() || !form.price) { setMsg({ type: 'error', text: 'Name, SKU and Price are required' }); return }
+    setSaving(true); setMsg(null)
     const payload = { name: form.name.trim(), sku: form.sku.trim(), price: parseFloat(form.price), stock: parseInt(form.stock) || 0, category_id: form.category_id || null, description: form.description || null }
     const res = editId
       ? await fetch(`/api/products/${editId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       : await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const d = await res.json()
-    if (d.error) { setMsg('✗ ' + d.error); setSaving(false); return }
-    setMsg(editId ? '✓ Product updated' : '✓ Product added')
+    if (d.error) { setMsg({ type: 'error', text: d.error }); setSaving(false); return }
+    setMsg({ type: 'success', text: editId ? 'Product updated' : 'Product added' })
     setForm(empty); setEditId(null); setShowForm(false); setSaving(false); load()
-    setTimeout(() => setMsg(''), 3000)
+    setTimeout(() => setMsg(null), 3000)
   }
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete "${name}"?`)) return
     const d = await fetch(`/api/products/${id}`, { method: 'DELETE' }).then(r => r.json())
-    if (d.error) setMsg('✗ ' + d.error)
-    else { setMsg('✓ Deleted'); load() }
-    setTimeout(() => setMsg(''), 3000)
+    if (d.error) setMsg({ type: 'error', text: d.error })
+    else { setMsg({ type: 'success', text: 'Deleted' }); load() }
+    setTimeout(() => setMsg(null), 3000)
   }
 
   const filtered = products.filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || (p.sku ?? '').toLowerCase().includes(search.toLowerCase()))
@@ -68,20 +70,24 @@ export default function ProductsPage() {
             {products.length} total {lowStock > 0 && <span style={{ color: 'var(--red)', fontWeight: 700 }}>· {lowStock} low stock</span>}
           </p>
         </div>
-        <button onClick={() => { setEditId(null); setForm(empty); setShowForm(s => !s) }} className="btn btn-primary">
-          {showForm && !editId ? '✕ Cancel' : '+ Add Product'}
+        <button onClick={() => { setEditId(null); setForm(empty); setShowForm(s => !s) }} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {showForm && !editId ? <><X size={15} /> Cancel</> : <><Plus size={15} /> Add Product</>}
         </button>
       </div>
 
       {msg && (
-        <div style={{ marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: 10, fontWeight: 700, fontSize: '0.875rem', background: msg.startsWith('✓') ? '#F0FDF4' : '#FEF2F2', color: msg.startsWith('✓') ? 'var(--green)' : 'var(--red)', border: `1.5px solid ${msg.startsWith('✓') ? '#BBF7D0' : '#FECACA'}` }}>
-          {msg}
+        <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 8, padding: '0.75rem 1rem', borderRadius: 10, fontWeight: 700, fontSize: '0.875rem', background: msg.type === 'success' ? '#F0FDF4' : '#FEF2F2', color: msg.type === 'success' ? 'var(--green)' : 'var(--red)', border: `1.5px solid ${msg.type === 'success' ? '#BBF7D0' : '#FECACA'}` }}>
+          {msg.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
+          {msg.text}
         </div>
       )}
 
       {showForm && (
         <div style={{ ...card, padding: '1.5rem', marginBottom: '1.5rem', borderColor: 'var(--orange)', borderWidth: 2 }}>
-          <div style={{ fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>{editId ? '✏️ Edit Product' : '＋ New Product'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 800, color: 'var(--text-1)', marginBottom: '1rem' }}>
+            {editId ? <Pencil size={16} /> : <Plus size={16} />}
+            {editId ? 'Edit Product' : 'New Product'}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ gridColumn: '1 / -1' }}>
               <label className="label">Product Name *</label>
@@ -135,7 +141,10 @@ export default function ProductsPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)' }}>
-                  {products.length === 0 ? 'No products yet — click Add Product or use ⚡ Seed Menu on Dashboard' : 'No matches'}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                    <Package size={32} strokeWidth={1.5} />
+                    {products.length === 0 ? 'No products yet — click Add Product or seed the menu from Dashboard' : 'No matches'}
+                  </div>
                 </td></tr>
               )}
               {filtered.map((p, i) => (

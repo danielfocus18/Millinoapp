@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
+import { Banknote, Smartphone, CreditCard, Wallet, CheckCircle2, X, ChevronUp, ChevronDown, Trash2 } from 'lucide-react'
 
 interface OrderItem {
   id: string; product_id: string; quantity: number; unit_price: number
@@ -14,7 +15,7 @@ interface Order {
 }
 type Filter = 'today' | 'week' | 'month' | 'all'
 
-const PM_ICON: Record<string, string> = { cash: '💵', momo: '📱', card: '💳' }
+const PM_ICON: Record<string, typeof Banknote> = { cash: Banknote, momo: Smartphone, card: CreditCard }
 const STATUS_STYLE: Record<string, React.CSSProperties> = {
   completed: { background: '#F0FDF4', color: '#15803D' },
   pending:   { background: '#FFFBEB', color: '#92400E' },
@@ -117,6 +118,7 @@ export default function OrdersPage() {
             const isOpen = expanded === order.id
             const isDeleting = deleting === order.id
             const isConfirming = confirmDelete === order.id
+            const PmIcon = order.payment_method ? (PM_ICON[order.payment_method] ?? Wallet) : null
 
             return (
               <div key={order.id} style={card}>
@@ -129,10 +131,10 @@ export default function OrdersPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-3)' }}>#{order.id.slice(-8).toUpperCase()}</span>
                       <span style={{ ...st, fontSize: '0.68rem', fontWeight: 800, padding: '0.18rem 0.6rem', borderRadius: 999, textTransform: 'uppercase' }}>{order.status}</span>
-                      {order.payment_method && (
-                        <span style={{ fontSize: '0.78rem' }}>
-                          {PM_ICON[order.payment_method] ?? '💰'}
-                          <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontWeight: 600, marginLeft: 3 }}>{order.payment_method.toUpperCase()}</span>
+                      {PmIcon && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <PmIcon size={13} color="var(--text-3)" />
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', fontWeight: 600 }}>{order.payment_method?.toUpperCase()}</span>
                         </span>
                       )}
                     </div>
@@ -145,7 +147,9 @@ export default function OrdersPage() {
                     <div style={{ fontWeight: 900, fontSize: '1.05rem', color: 'var(--orange)' }}>GH₵{net.toFixed(2)}</div>
                     {disc > 0 && <div style={{ fontSize: '0.7rem', color: 'var(--amber)', fontWeight: 700 }}>−GH₵{disc.toFixed(2)}</div>}
                   </div>
-                  <span style={{ color: 'var(--text-3)', fontSize: '0.8rem', flexShrink: 0 }}>{isOpen ? '▲' : '▼'}</span>
+                  <span style={{ color: 'var(--text-3)', flexShrink: 0, display: 'flex' }}>
+                    {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </span>
                 </button>
 
                 {/* Expanded detail */}
@@ -186,10 +190,12 @@ export default function OrdersPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       {order.status === 'pending' && (
                         <>
-                          <button onClick={() => updateStatus(order.id, 'completed')} className="btn btn-success btn-sm">✓ Mark Complete</button>
+                          <button onClick={() => updateStatus(order.id, 'completed')} className="btn btn-success btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <CheckCircle2 size={14} /> Mark Complete
+                          </button>
                           <button onClick={() => updateStatus(order.id, 'cancelled')} className="btn btn-sm"
-                            style={{ background: '#FEF2F2', color: 'var(--red)', border: '1.5px solid #FECACA' }}>
-                            ✕ Cancel Order
+                            style={{ background: '#FEF2F2', color: 'var(--red)', border: '1.5px solid #FECACA', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <X size={14} /> Cancel Order
                           </button>
                         </>
                       )}
@@ -200,11 +206,11 @@ export default function OrdersPage() {
                           <button
                             onClick={() => setConfirmDelete(order.id)}
                             className="btn btn-sm"
-                            style={{ background: 'transparent', color: 'var(--text-3)', border: '1.5px solid var(--border-2)', gap: 6 }}
+                            style={{ background: 'transparent', color: 'var(--text-3)', border: '1.5px solid var(--border-2)', display: 'flex', alignItems: 'center', gap: 6 }}
                             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#FEF2F2'; (e.currentTarget as HTMLElement).style.color = 'var(--red)'; (e.currentTarget as HTMLElement).style.borderColor = '#FECACA' }}
                             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-2)' }}
                           >
-                            🗑 Delete Order
+                            <Trash2 size={14} /> Delete Order
                           </button>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#FEF2F2', border: '1.5px solid #FECACA', borderRadius: 8, padding: '0.4rem 0.875rem' }}>

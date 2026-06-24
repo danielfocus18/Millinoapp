@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useCart, type PricingType } from '@/store/cart'
 import { getProfile } from '@/lib/getProfile'
+import {
+  Search, ShoppingCart, Plus, Minus, X, Printer, Banknote, Smartphone,
+  CreditCard, CheckCircle2, UtensilsCrossed, Croissant, CupSoda, Soup,
+  ArrowUpRight, LogOut,
+} from 'lucide-react'
 
 interface Product { id: string; name: string; price: number; stock: number; sku?: string; category_id?: string }
 interface Category { id: string; name: string }
@@ -16,7 +21,12 @@ interface ReceiptData {
   paymentMethod: string; amountPaid: number
 }
 
-const CAT_EMOJI: Record<string, string> = { Meals: '🍛', Pastries: '🥐', Drinks: '🥤' }
+function CategoryIcon({ name, size = 18 }: { name: string; size?: number }) {
+  if (name === 'Meals') return <UtensilsCrossed size={size} />
+  if (name === 'Pastries') return <Croissant size={size} />
+  if (name === 'Drinks') return <CupSoda size={size} />
+  return <Soup size={size} />
+}
 
 const PRICING: { value: PricingType; label: string; activeBg: string }[] = [
   { value: 'normal',   label: 'Normal',   activeBg: 'var(--ink)'   },
@@ -43,7 +53,7 @@ export default function POSPage() {
   const [qty, setQty] = useState(1)
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [cashGiven, setCashGiven] = useState('')
-  const [showCart, setShowCart] = useState(false) // mobile cart toggle
+  const [showCart, setShowCart] = useState(false)
   const discountRef = useRef<HTMLInputElement>(null)
   const userId = useRef<string>('')
 
@@ -70,14 +80,9 @@ export default function POSPage() {
 
   useEffect(() => { if (pricingType === 'discount') discountRef.current?.focus() }, [pricingType])
 
-  // Toggle a body class only while the receipt screen is showing,
-  // so the receipt-only print CSS never leaks onto other pages.
   useEffect(() => {
-    if (receipt) {
-      document.body.classList.add('printing-receipt')
-    } else {
-      document.body.classList.remove('printing-receipt')
-    }
+    if (receipt) document.body.classList.add('printing-receipt')
+    else document.body.classList.remove('printing-receipt')
     return () => { document.body.classList.remove('printing-receipt') }
   }, [receipt])
 
@@ -153,10 +158,7 @@ export default function POSPage() {
   if (receipt) return (
     <div style={{ minHeight: '100vh', background: '#F5F5F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '2rem' }}>
 
-      {/* ── Screen receipt card — pure black & white ── */}
       <div style={{ width: 340, background: '#fff', borderRadius: 20, overflow: 'hidden', boxShadow: '0 8px 40px rgba(0,0,0,0.12)', border: '1px solid #E0E0E0' }}>
-
-        {/* Header — white background, black text, logo in color */}
         <div style={{ background: '#fff', padding: '1.75rem 1.5rem 1.25rem', textAlign: 'center', borderBottom: '1px solid #E8E8E8' }}>
           <img src="/logo.png" alt="Millino Chops" style={{ width: 64, height: 64, objectFit: 'contain', margin: '0 auto 12px', display: 'block' }} />
           <div style={{ fontWeight: 900, color: '#000', fontSize: '1.15rem', letterSpacing: '0.08em', marginBottom: 3 }}>MILLINO CHOPS</div>
@@ -168,7 +170,6 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Items */}
         <div style={{ padding: '1rem 1.375rem', borderBottom: '1px dashed #BDBDBD' }}>
           {receipt.items.map((item, i) => (
             <div key={i} style={{ marginBottom: i < receipt.items.length - 1 ? 12 : 0 }}>
@@ -189,7 +190,6 @@ export default function POSPage() {
           ))}
         </div>
 
-        {/* Totals */}
         <div style={{ padding: '1rem 1.375rem', borderBottom: '1px dashed #BDBDBD' }}>
           {receipt.discount > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem', color: '#000', marginBottom: 6 }}>
@@ -210,7 +210,6 @@ export default function POSPage() {
           </div>
         </div>
 
-        {/* Thank you footer */}
         <div style={{ background: '#fff', padding: '1.25rem', textAlign: 'center', borderTop: '1px solid #E8E8E8' }}>
           <div style={{ fontWeight: 900, color: '#000', fontSize: '0.85rem', letterSpacing: '0.08em', marginBottom: 4 }}>
             THANK YOU! COME AGAIN
@@ -219,10 +218,13 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Action buttons */}
       <div style={{ display: 'flex', gap: 12 }}>
-        <button onClick={() => window.print()} className="btn btn-outline">🖨 Print Receipt</button>
-        <button onClick={() => { setReceipt(null); setCashGiven('') }} className="btn btn-primary btn-lg">＋ New Sale</button>
+        <button onClick={() => window.print()} className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Printer size={16} /> Print Receipt
+        </button>
+        <button onClick={() => { setReceipt(null); setCashGiven('') }} className="btn btn-primary btn-lg" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Plus size={18} /> New Sale
+        </button>
       </div>
 
       {/* Hidden thermal receipt for printing */}
@@ -295,13 +297,18 @@ export default function POSPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {profile && <span style={{ color: '#7C6050', fontSize: '0.8rem', fontWeight: 600 }} className="hidden sm:inline">{profile.name}</span>}
           {profile?.role === 'manager' && (
-            <button onClick={() => router.push('/admin')} className="btn btn-sm" style={{ background: 'rgba(240,90,40,0.15)', color: '#FDA274', border: '1px solid rgba(240,90,40,0.3)' }}>Admin ↗</button>
+            <button onClick={() => router.push('/admin')} className="btn btn-sm" style={{ background: 'rgba(240,90,40,0.15)', color: '#FDA274', border: '1px solid rgba(240,90,40,0.3)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              Admin <ArrowUpRight size={14} />
+            </button>
           )}
           {/* Mobile cart toggle */}
-          <button onClick={() => setShowCart(s => !s)} className="btn btn-sm md:hidden" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', position: 'relative' }}>
-            🛒 {items.length > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 999, background: 'var(--orange)', color: '#fff', fontSize: '0.6rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{items.length}</span>}
+          <button onClick={() => setShowCart(s => !s)} className="btn btn-sm md:hidden" style={{ background: 'rgba(255,255,255,0.08)', color: '#fff', position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <ShoppingCart size={16} />
+            {items.length > 0 && <span style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: 999, background: 'var(--orange)', color: '#fff', fontSize: '0.6rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{items.length}</span>}
           </button>
-          <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }} className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.06)', color: '#7C6050' }}>Out</button>
+          <button onClick={async () => { await supabase.auth.signOut(); router.push('/login') }} className="btn btn-sm" style={{ background: 'rgba(255,255,255,0.06)', color: '#7C6050', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <LogOut size={14} /> Out
+          </button>
         </div>
       </header>
 
@@ -314,7 +321,7 @@ export default function POSPage() {
           {/* Search + categories */}
           <div style={{ flexShrink: 0, padding: '1rem 1.5rem 0.875rem', background: '#fff', borderBottom: '1.5px solid var(--border)' }}>
             <div style={{ position: 'relative', marginBottom: '0.875rem' }}>
-              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', color: 'var(--text-3)' }}>🔍</span>
+              <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search menu…" className="input"
                 style={{ paddingLeft: '2.25rem', background: 'var(--surface)', borderColor: 'var(--border)' }} />
             </div>
@@ -324,14 +331,16 @@ export default function POSPage() {
                 const active = selectedCat === c.id
                 return (
                   <button key={c.id ?? 'all'} onClick={() => setSelectedCat(c.id as string | null)} style={{
-                    flexShrink: 0, padding: '0.4rem 1rem', borderRadius: 999, fontSize: '0.82rem', fontWeight: 700,
+                    flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6,
+                    padding: '0.4rem 1rem', borderRadius: 999, fontSize: '0.82rem', fontWeight: 700,
                     border: active ? 'none' : '1.5px solid var(--border-2)',
                     background: active ? 'var(--orange)' : '#fff',
                     color: active ? '#fff' : 'var(--text-2)',
                     cursor: 'pointer', transition: 'all 0.15s',
                     boxShadow: active ? 'var(--sh-orange)' : 'none',
                   }}>
-                    {c.id ? (CAT_EMOJI[c.name] ?? '🍽') + ' ' : ''}{c.name}
+                    {c.id && <CategoryIcon name={c.name} size={15} />}
+                    {c.name}
                   </button>
                 )
               })}
@@ -342,13 +351,13 @@ export default function POSPage() {
           <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 1.5rem' }}>
             {filtered.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-3)' }}>
-                <div style={{ fontSize: '3.5rem' }}>🍽️</div>
+                <UtensilsCrossed size={56} strokeWidth={1.5} />
                 <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-2)', marginTop: 12 }}>
                   {products.length === 0 ? 'Menu is empty' : 'Nothing found'}
                 </div>
                 {products.length === 0 && profile?.role === 'manager' && (
                   <button onClick={() => router.push('/admin')} className="btn btn-primary" style={{ marginTop: 16 }}>
-                    Go to Admin → Add Products
+                    Go to Admin to Add Products
                   </button>
                 )}
               </div>
@@ -357,6 +366,7 @@ export default function POSPage() {
                 {filtered.map(p => {
                   const outOfStock = p.stock === 0
                   const isSelected = pickedProduct?.id === p.id
+                  const catName = categories.find(c => c.id === p.category_id)?.name ?? ''
                   return (
                     <button key={p.id} onClick={() => pickProduct(p)} disabled={outOfStock} style={{
                       background: isSelected ? 'var(--orange)' : '#fff',
@@ -368,8 +378,8 @@ export default function POSPage() {
                       transition: 'all 0.15s', textAlign: 'left',
                       transform: isSelected ? 'scale(0.97)' : 'scale(1)',
                     }}>
-                      <div style={{ fontSize: '1.75rem', marginBottom: 8 }}>
-                        {CAT_EMOJI[categories.find(c => c.id === p.category_id)?.name ?? ''] ?? '🍽'}
+                      <div style={{ marginBottom: 8, color: isSelected ? '#fff' : 'var(--orange)' }}>
+                        <CategoryIcon name={catName} size={28} />
                       </div>
                       <div style={{ fontWeight: 700, fontSize: '0.83rem', color: isSelected ? '#fff' : 'var(--text-1)', lineHeight: 1.3, marginBottom: 6 }}>
                         {p.name}
@@ -395,7 +405,6 @@ export default function POSPage() {
                   <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', marginBottom: 2 }}>{pickedProduct.name}</div>
                   <div style={{ fontWeight: 900, color: 'var(--orange)', fontSize: '1.2rem' }}>GH₵{Number(pickedProduct.price).toFixed(2)}</div>
                 </div>
-                {/* Pricing type */}
                 <div style={{ display: 'flex', gap: 6 }}>
                   {PRICING.map(pt => (
                     <button key={pt.value} onClick={() => { setPricingType(pt.value); setDiscountAmt('') }} style={{
@@ -407,7 +416,6 @@ export default function POSPage() {
                     }}>{pt.label}</button>
                   ))}
                 </div>
-                {/* Discount amount */}
                 {pricingType === 'discount' && (
                   <div>
                     <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Amount charged (GH₵)</div>
@@ -422,14 +430,20 @@ export default function POSPage() {
                 )}
                 {/* Qty */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button onClick={() => setQty(Math.max(1, qty - 1))} style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.10)', color: '#fff', border: 'none', fontSize: '1.2rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                  <button onClick={() => setQty(Math.max(1, qty - 1))} style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.10)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Minus size={16} />
+                  </button>
                   <span style={{ width: 28, textAlign: 'center', fontWeight: 800, fontSize: '1rem', color: '#fff' }}>{qty}</span>
-                  <button onClick={() => setQty(qty + 1)} style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.10)', color: '#fff', border: 'none', fontSize: '1.2rem', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                  <button onClick={() => setQty(qty + 1)} style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.10)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Plus size={16} />
+                  </button>
                 </div>
                 {/* Actions */}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => setPickedProduct(null)} style={{ padding: '0.4rem 0.875rem', borderRadius: 7, background: 'rgba(255,255,255,0.08)', color: '#A8917E', border: '1px solid rgba(255,255,255,0.10)', cursor: 'pointer', fontSize: '0.83rem', fontWeight: 700 }}>Cancel</button>
-                  <button onClick={addToCart} className="btn btn-primary btn-sm">＋ Add to Order</button>
+                  <button onClick={addToCart} className="btn btn-primary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Plus size={15} /> Add to Order
+                  </button>
                 </div>
               </div>
             </div>
@@ -437,16 +451,13 @@ export default function POSPage() {
         </div>
 
         {/* ── CART PANEL ── */}
-        {/* Desktop: always visible. Mobile: slide-in overlay */}
         <>
-          {/* Mobile backdrop */}
           {showCart && (
             <div onClick={() => setShowCart(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 20 }} className="md:hidden" />
           )}
           <div style={{
             width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column',
             background: '#fff', borderLeft: '1.5px solid var(--border)',
-            // On mobile: fixed right drawer
             position: 'relative',
           }}
           className={`
@@ -469,7 +480,7 @@ export default function POSPage() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '0.875rem' }}>
               {items.length === 0 ? (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)' }}>
-                  <div style={{ fontSize: '2.25rem' }}>🛒</div>
+                  <ShoppingCart size={40} strokeWidth={1.5} />
                   <div style={{ fontWeight: 600, fontSize: '0.875rem', marginTop: 8 }}>Order is empty</div>
                   <div style={{ fontSize: '0.75rem', marginTop: 3 }}>Tap a product to begin</div>
                 </div>
@@ -486,15 +497,21 @@ export default function POSPage() {
                             {item.pricingType === 'free' && <span style={{ background: '#F0FDF4', color: '#15803D', fontSize: '0.6rem', fontWeight: 800, padding: '1px 5px', borderRadius: 999 }}>FREE</span>}
                           </div>
                         </div>
-                        <button onClick={() => removeItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: '1.1rem', cursor: 'pointer', flexShrink: 0, padding: '0 2px', lineHeight: 1 }}
+                        <button onClick={() => removeItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', flexShrink: 0, padding: '2px', display: 'flex', alignItems: 'center' }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = 'var(--red)'}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'}>×</button>
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = 'var(--text-3)'}>
+                          <X size={15} />
+                        </button>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', fontWeight: 800, cursor: 'pointer', color: 'var(--text-2)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                          <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Minus size={13} />
+                          </button>
                           <span style={{ width: 22, textAlign: 'center', fontWeight: 800, fontSize: '0.875rem', color: 'var(--text-1)' }}>{item.quantity}</span>
-                          <button onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', fontWeight: 800, cursor: 'pointer', color: 'var(--text-2)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                          <button onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', cursor: 'pointer', color: 'var(--text-2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plus size={13} />
+                          </button>
                         </div>
                         <div style={{ fontWeight: 900, fontSize: '0.9rem', color: 'var(--orange)' }}>GH₵{item.lineTotal.toFixed(2)}</div>
                       </div>
@@ -506,7 +523,6 @@ export default function POSPage() {
 
             {/* Checkout area */}
             <div style={{ flexShrink: 0, padding: '1rem 1.125rem', borderTop: '1.5px solid var(--border)', background: 'var(--surface-warm)' }}>
-              {/* Totals */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.83rem', color: 'var(--text-2)', marginBottom: 4 }}>
                   <span>Subtotal</span><span>GH₵{gross.toFixed(2)}</span>
@@ -526,15 +542,15 @@ export default function POSPage() {
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Payment</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-                  {[{ v: 'cash', l: '💵', s: 'Cash' }, { v: 'momo', l: '📱', s: 'MoMo' }, { v: 'card', l: '💳', s: 'Card' }].map(pm => (
+                  {[{ v: 'cash', Icon: Banknote, s: 'Cash' }, { v: 'momo', Icon: Smartphone, s: 'MoMo' }, { v: 'card', Icon: CreditCard, s: 'Card' }].map(pm => (
                     <button key={pm.v} onClick={() => setPaymentMethod(pm.v)} style={{
                       padding: '0.5rem 0.25rem', borderRadius: 8, fontSize: '0.72rem', fontWeight: 700,
                       background: paymentMethod === pm.v ? 'var(--ink)' : '#fff',
                       color: paymentMethod === pm.v ? '#fff' : 'var(--text-2)',
                       border: `1.5px solid ${paymentMethod === pm.v ? 'var(--ink)' : 'var(--border-2)'}`,
-                      cursor: 'pointer', transition: 'all 0.12s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                      cursor: 'pointer', transition: 'all 0.12s', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                     }}>
-                      <span style={{ fontSize: '1rem' }}>{pm.l}</span>
+                      <pm.Icon size={18} />
                       <span>{pm.s}</span>
                     </button>
                   ))}
@@ -556,18 +572,20 @@ export default function POSPage() {
 
               {/* Charge button */}
               <button onClick={checkout} disabled={!items.length || checkingOut} className="btn btn-success w-full"
-                style={{ padding: '0.875rem', fontSize: '0.95rem', fontWeight: 900, borderRadius: 12, letterSpacing: '0.04em', boxShadow: items.length ? '0 4px 20px rgba(22,163,74,0.35)' : 'none' }}>
-                {checkingOut ? 'Processing…' : `✓ CHARGE  GH₵${net.toFixed(2)}`}
+                style={{ padding: '0.875rem', fontSize: '0.95rem', fontWeight: 900, borderRadius: 12, letterSpacing: '0.04em', boxShadow: items.length ? '0 4px 20px rgba(22,163,74,0.35)' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                {checkingOut ? 'Processing…' : <><CheckCircle2 size={18} /> CHARGE GH₵{net.toFixed(2)}</>}
               </button>
             </div>
           </div>
 
-          {/* Mobile cart — shown when showCart=true */}
+          {/* Mobile cart */}
           {showCart && (
             <div style={{ position: 'fixed', right: 0, top: 0, height: '100%', width: 300, zIndex: 30, display: 'flex', flexDirection: 'column', background: '#fff', borderLeft: '1.5px solid var(--border)', boxShadow: '-8px 0 32px rgba(0,0,0,0.2)' }} className="md:hidden">
               <div style={{ flexShrink: 0, padding: '1rem 1.25rem', background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ fontWeight: 900, color: '#fff' }}>ORDER — {items.length} items</div>
-                <button onClick={() => setShowCart(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: '1rem' }}>✕</button>
+                <button onClick={() => setShowCart(false)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <X size={16} />
+                </button>
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: '0.875rem' }}>
                 {items.length === 0 ? (
@@ -576,13 +594,19 @@ export default function POSPage() {
                   <div key={i} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 12, padding: '0.75rem', marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '0.83rem', marginBottom: 6 }}>
                       <span>{item.name}</span>
-                      <button onClick={() => removeItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer' }}>×</button>
+                      <button onClick={() => removeItem(item.id)} style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                        <X size={14} />
+                      </button>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', fontWeight: 800, cursor: 'pointer' }}>−</button>
+                        <button onClick={() => updateQty(item.id, item.quantity - 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Minus size={13} />
+                        </button>
                         <span style={{ width: 22, textAlign: 'center', fontWeight: 800 }}>{item.quantity}</span>
-                        <button onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', fontWeight: 800, cursor: 'pointer' }}>+</button>
+                        <button onClick={() => updateQty(item.id, item.quantity + 1)} style={{ width: 26, height: 26, borderRadius: 6, background: 'var(--border-2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Plus size={13} />
+                        </button>
                       </div>
                       <span style={{ fontWeight: 900, color: 'var(--orange)' }}>GH₵{item.lineTotal.toFixed(2)}</span>
                     </div>
@@ -593,8 +617,8 @@ export default function POSPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '1.05rem', marginBottom: 12 }}>
                   <span>TOTAL</span><span style={{ color: 'var(--orange)' }}>GH₵{net.toFixed(2)}</span>
                 </div>
-                <button onClick={() => { checkout(); setShowCart(false) }} disabled={!items.length || checkingOut} className="btn btn-success w-full" style={{ padding: '0.875rem', fontWeight: 900, borderRadius: 12 }}>
-                  {checkingOut ? 'Processing…' : `✓ CHARGE GH₵${net.toFixed(2)}`}
+                <button onClick={() => { checkout(); setShowCart(false) }} disabled={!items.length || checkingOut} className="btn btn-success w-full" style={{ padding: '0.875rem', fontWeight: 900, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {checkingOut ? 'Processing…' : <><CheckCircle2 size={16} /> CHARGE GH₵{net.toFixed(2)}</>}
                 </button>
               </div>
             </div>

@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { Zap, Tag, TrendingUp, Wallet, ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -80,13 +81,13 @@ export default function LoginPage() {
           {/* Feature pills */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
-              { icon: '⚡', text: 'Fast order processing' },
-              { icon: '🏷️', text: 'Normal, Discount & Free pricing' },
-              { icon: '📈', text: 'Sales reports & analytics' },
-              { icon: '💰', text: 'Profit & expense tracking' },
+              { Icon: Zap, text: 'Fast order processing' },
+              { Icon: Tag, text: 'Normal, Discount & Free pricing' },
+              { Icon: TrendingUp, text: 'Sales reports & analytics' },
+              { Icon: Wallet, text: 'Profit & expense tracking' },
             ].map(f => (
               <div key={f.text} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1rem', width: 24, textAlign: 'center' }}>{f.icon}</span>
+                <f.Icon size={18} color="#FDA274" style={{ flexShrink: 0 }} />
                 <span style={{ color: '#A8917E', fontSize: '0.875rem' }}>{f.text}</span>
               </div>
             ))}
@@ -152,8 +153,8 @@ export default function LoginPage() {
             )}
 
             <button type="submit" disabled={loading} className="btn btn-primary"
-              style={{ padding: '0.875rem', fontSize: '1rem', fontWeight: 800, borderRadius: 12, marginTop: 4, letterSpacing: '0.02em' }}>
-              {loading ? 'Signing in…' : 'Sign In →'}
+              style={{ padding: '0.875rem', fontSize: '1rem', fontWeight: 800, borderRadius: 12, marginTop: 4, letterSpacing: '0.02em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              {loading ? 'Signing in…' : <>Sign In <ArrowRight size={16} /></>}
             </button>
           </form>
 

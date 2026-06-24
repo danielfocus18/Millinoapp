@@ -2,15 +2,19 @@
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import {
+  LayoutDashboard, ShoppingCart, Receipt, Package, Tags, Wallet, TrendingUp,
+  LogOut, X,
+} from 'lucide-react'
 
 const NAV = [
-  { href: '/admin',             icon: '📊', label: 'Dashboard'   },
-  { href: '/pos',               icon: '🛒', label: 'POS Terminal' },
-  { href: '/admin/orders',      icon: '🧾', label: 'Orders'       },
-  { href: '/admin/products',    icon: '📦', label: 'Products'     },
-  { href: '/admin/categories',  icon: '🏷️', label: 'Categories'  },
-  { href: '/admin/expenses',    icon: '💸', label: 'Expenses'     },
-  { href: '/admin/reports',     icon: '📈', label: 'Reports'      },
+  { href: '/admin',             icon: LayoutDashboard, label: 'Dashboard'    },
+  { href: '/pos',               icon: ShoppingCart,     label: 'POS Terminal' },
+  { href: '/admin/orders',      icon: Receipt,          label: 'Orders'       },
+  { href: '/admin/products',    icon: Package,          label: 'Products'     },
+  { href: '/admin/categories',  icon: Tags,              label: 'Categories'   },
+  { href: '/admin/expenses',    icon: Wallet,            label: 'Expenses'     },
+  { href: '/admin/reports',     icon: TrendingUp,        label: 'Reports'      },
 ]
 
 interface SidebarProps {
@@ -43,9 +47,10 @@ export function Sidebar({ userName, onClose }: SidebarProps) {
             <div style={{ fontWeight: 900, color: 'var(--orange)', fontSize: '0.82rem', letterSpacing: '0.03em', marginTop: 1 }}>CHOPS</div>
           </div>
         </div>
-        {/* Close button — only on mobile */}
         {onClose && (
-          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#A8917E', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.08)', border: 'none', color: '#A8917E', width: 28, height: 28, borderRadius: 6, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <X size={16} />
+          </button>
         )}
       </div>
 
@@ -53,6 +58,7 @@ export function Sidebar({ userName, onClose }: SidebarProps) {
       <nav style={{ flex: 1, padding: '0.75rem 0.5rem', overflowY: 'auto' }}>
         {NAV.map(item => {
           const active = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href))
+          const Icon = item.icon
           return (
             <button key={item.href} onClick={() => navigate(item.href)} style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: 10,
@@ -65,7 +71,7 @@ export function Sidebar({ userName, onClose }: SidebarProps) {
             }}
             onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)' }}
             onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-              <span style={{ fontSize: '1rem', width: 20, flexShrink: 0, textAlign: 'center' }}>{item.icon}</span>
+              <Icon size={18} strokeWidth={2} style={{ flexShrink: 0 }} />
               <span style={{ flex: 1 }}>{item.label}</span>
               {active && <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--orange)', flexShrink: 0 }} />}
             </button>
@@ -95,7 +101,7 @@ export function Sidebar({ userName, onClose }: SidebarProps) {
         }}
         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.10)' }}
         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
-          <span style={{ width: 20, textAlign: 'center' }}>↩</span> Sign Out
+          <LogOut size={18} strokeWidth={2} /> Sign Out
         </button>
       </div>
     </aside>
