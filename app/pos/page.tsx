@@ -10,7 +10,7 @@ import {
   ArrowUpRight, LogOut,
 } from 'lucide-react'
 
-interface Product { id: string; name: string; price: number; stock: number; sku?: string; category_id?: string }
+interface Product { id: string; name: string; price: number; stock: number; sku?: string; category_id?: string; image_url?: string | null }
 interface Category { id: string; name: string }
 interface Profile { role: string; name: string }
 interface ReceiptData {
@@ -21,11 +21,11 @@ interface ReceiptData {
   paymentMethod: string; amountPaid: number
 }
 
-function CategoryIcon({ name, size = 18 }: { name: string; size?: number }) {
-  if (name === 'Meals') return <UtensilsCrossed size={size} />
-  if (name === 'Pastries') return <Croissant size={size} />
-  if (name === 'Drinks') return <CupSoda size={size} />
-  return <Soup size={size} />
+function CategoryIcon({ name, size = 18, color }: { name: string; size?: number; color?: string }) {
+  if (name === 'Meals') return <UtensilsCrossed size={size} color={color} />
+  if (name === 'Pastries') return <Croissant size={size} color={color} />
+  if (name === 'Drinks') return <CupSoda size={size} color={color} />
+  return <Soup size={size} color={color} />
 }
 
 const PRICING: { value: PricingType; label: string; activeBg: string }[] = [
@@ -371,24 +371,38 @@ export default function POSPage() {
                     <button key={p.id} onClick={() => pickProduct(p)} disabled={outOfStock} style={{
                       background: isSelected ? 'var(--orange)' : '#fff',
                       border: isSelected ? '2.5px solid var(--orange-dk)' : '1.5px solid var(--border)',
-                      borderRadius: 16, padding: '1rem',
+                      borderRadius: 16, padding: 0, overflow: 'hidden',
                       cursor: outOfStock ? 'not-allowed' : 'pointer',
                       opacity: outOfStock ? 0.4 : 1,
                       boxShadow: isSelected ? 'var(--sh-orange)' : 'var(--sh-sm)',
                       transition: 'all 0.15s', textAlign: 'left',
                       transform: isSelected ? 'scale(0.97)' : 'scale(1)',
                     }}>
-                      <div style={{ marginBottom: 8, color: isSelected ? '#fff' : 'var(--orange)' }}>
-                        <CategoryIcon name={catName} size={28} />
+                      {/* Fixed-aspect image area — every photo crops to fit the same shape */}
+                      <div style={{
+                        width: '100%', aspectRatio: '4 / 3', overflow: 'hidden',
+                        background: isSelected ? 'rgba(255,255,255,0.15)' : 'var(--surface)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        {p.image_url ? (
+                          <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                        ) : (
+                          <div style={{ color: isSelected ? '#fff' : 'var(--orange)' }}>
+                            <CategoryIcon name={catName} size={30} />
+                          </div>
+                        )}
                       </div>
-                      <div style={{ fontWeight: 700, fontSize: '0.83rem', color: isSelected ? '#fff' : 'var(--text-1)', lineHeight: 1.3, marginBottom: 6 }}>
-                        {p.name}
-                      </div>
-                      <div style={{ fontWeight: 900, fontSize: '1.05rem', color: isSelected ? 'rgba(255,255,255,0.92)' : 'var(--orange)' }}>
-                        GH₵{Number(p.price).toFixed(2)}
-                      </div>
-                      <div style={{ fontSize: '0.67rem', fontWeight: 700, marginTop: 4, color: outOfStock ? 'var(--red)' : p.stock < 5 ? 'var(--amber)' : isSelected ? 'rgba(255,255,255,0.55)' : 'var(--text-3)' }}>
-                        {outOfStock ? 'OUT OF STOCK' : p.stock < 5 ? `LOW: ${p.stock}` : `${p.stock} avail.`}
+
+                      <div style={{ padding: '0.75rem 1rem 1rem' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.83rem', color: isSelected ? '#fff' : 'var(--text-1)', lineHeight: 1.3, marginBottom: 6 }}>
+                          {p.name}
+                        </div>
+                        <div style={{ fontWeight: 900, fontSize: '1.05rem', color: isSelected ? 'rgba(255,255,255,0.92)' : 'var(--orange)' }}>
+                          GH₵{Number(p.price).toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: '0.67rem', fontWeight: 700, marginTop: 4, color: outOfStock ? 'var(--red)' : p.stock < 5 ? 'var(--amber)' : isSelected ? 'rgba(255,255,255,0.55)' : 'var(--text-3)' }}>
+                          {outOfStock ? 'OUT OF STOCK' : p.stock < 5 ? `LOW: ${p.stock}` : `${p.stock} avail.`}
+                        </div>
                       </div>
                     </button>
                   )
@@ -401,6 +415,15 @@ export default function POSPage() {
           {pickedProduct && (
             <div className="slide-up" style={{ flexShrink: 0, background: 'var(--ink)', borderTop: '2px solid var(--orange)', padding: '1rem 1.5rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                {/* Small thumbnail — same fixed-square treatment as everywhere else */}
+                <div style={{
+                  width: 48, height: 48, borderRadius: 10, overflow: 'hidden', flexShrink: 0,
+                  background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {pickedProduct.image_url
+                    ? <img src={pickedProduct.image_url} alt={pickedProduct.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    : <CategoryIcon name={categories.find(c => c.id === pickedProduct.category_id)?.name ?? ''} size={22} color="#A8917E" />}
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 800, color: '#fff', fontSize: '0.95rem', marginBottom: 2 }}>{pickedProduct.name}</div>
                   <div style={{ fontWeight: 900, color: 'var(--orange)', fontSize: '1.2rem' }}>GH₵{Number(pickedProduct.price).toFixed(2)}</div>

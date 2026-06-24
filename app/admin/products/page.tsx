@@ -1,11 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { Pencil, Plus, X, CheckCircle2, XCircle, Package } from 'lucide-react'
+import { Pencil, Plus, X, CheckCircle2, XCircle, Package, ImageOff } from 'lucide-react'
+import { ProductImageUpload } from '@/components/admin/ProductImageUpload'
 
-interface Product { id: string; name: string; sku: string; price: number; stock: number; category_id?: string; description?: string }
+interface Product { id: string; name: string; sku: string; price: number; stock: number; category_id?: string; description?: string; image_url?: string | null }
 interface Category { id: string; name: string }
 interface Msg { type: 'success' | 'error'; text: string }
-const empty = { name: '', sku: '', price: '', stock: '', category_id: '', description: '' }
+const empty = { name: '', sku: '', price: '', stock: '', category_id: '', description: '', image_url: null as string | null }
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
@@ -30,7 +31,7 @@ export default function ProductsPage() {
 
   function startEdit(p: Product) {
     setEditId(p.id)
-    setForm({ name: p.name, sku: p.sku ?? '', price: String(p.price), stock: String(p.stock), category_id: p.category_id ?? '', description: p.description ?? '' })
+    setForm({ name: p.name, sku: p.sku ?? '', price: String(p.price), stock: String(p.stock), category_id: p.category_id ?? '', description: p.description ?? '', image_url: p.image_url ?? null })
     setShowForm(true)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -38,15 +39,19 @@ export default function ProductsPage() {
   async function handleSave() {
     if (!form.name.trim() || !form.sku.trim() || !form.price) { setMsg({ type: 'error', text: 'Name, SKU and Price are required' }); return }
     setSaving(true); setMsg(null)
-    const payload = { name: form.name.trim(), sku: form.sku.trim(), price: parseFloat(form.price), stock: parseInt(form.stock) || 0, category_id: form.category_id || null, description: form.description || null }
+    const payload = {
+      name: form.name.trim(), sku: form.sku.trim(), price: parseFloat(form.price),
+      stock: parseInt(form.stock) || 0, category_id: form.category_id || null,
+      description: form.description || null, image_url: form.image_url || null,
+    }
     const res = editId
       ? await fetch(`/api/products/${editId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       : await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     const d = await res.json()
     if (d.error) { setMsg({ type: 'error', text: d.error }); setSaving(false); return }
-    setMsg({ type: 'success', text: editId ? 'Product updated' : 'Product added' })
+    setMsg({ type: 'success', text: d.warning ?? (editId ? 'Product updated' : 'Product added') })
     setForm(empty); setEditId(null); setShowForm(false); setSaving(false); load()
-    setTimeout(() => setMsg(null), 3000)
+    setTimeout(() => setMsg(null), 4000)
   }
 
   async function handleDelete(id: string, name: string) {
@@ -88,35 +93,47 @@ export default function ProductsPage() {
             {editId ? <Pencil size={16} /> : <Plus size={16} />}
             {editId ? 'Edit Product' : 'New Product'}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="label">Product Name *</label>
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input" placeholder="e.g. Jollof Rice (Reg)" autoFocus />
-            </div>
+
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+            {/* Image upload — fixed square, every photo crops to fit identically */}
             <div>
-              <label className="label">SKU * (unique code)</label>
-              <input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} className="input" placeholder="e.g. ML-014" />
+              <label className="label">Photo</label>
+              <ProductImageUpload value={form.image_url} onChange={url => setForm({ ...form, image_url: url })} size={96} />
             </div>
-            <div>
-              <label className="label">Category</label>
-              <select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })} className="input">
-                <option value="">— None —</option>
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Price (GH₵) *</label>
-              <input type="number" min="0" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input" placeholder="0.00" />
-            </div>
-            <div>
-              <label className="label">Stock Quantity</label>
-              <input type="number" min="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="input" placeholder="99" />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label className="label">Description (optional)</label>
-              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input" style={{ height: 68, resize: 'none' }} placeholder="Short description…" />
+
+            {/* Form fields */}
+            <div style={{ flex: 1, minWidth: 280, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="label">Product Name *</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input" placeholder="e.g. Jollof Rice (Reg)" autoFocus />
+              </div>
+              <div>
+                <label className="label">SKU * (unique code)</label>
+                <input value={form.sku} onChange={e => setForm({ ...form, sku: e.target.value })} className="input" placeholder="e.g. ML-014" />
+              </div>
+              <div>
+                <label className="label">Category</label>
+                <select value={form.category_id} onChange={e => setForm({ ...form, category_id: e.target.value })} className="input">
+                  <option value="">— None —</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Price (GH₵) *</label>
+                <input type="number" min="0" step="0.01" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input" placeholder="0.00" />
+              </div>
+              <div>
+                <label className="label">Stock Quantity</label>
+                <input type="number" min="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className="input" placeholder="99" />
+              </div>
             </div>
           </div>
+
+          <div style={{ marginTop: 14 }}>
+            <label className="label">Description (optional)</label>
+            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input" style={{ height: 68, resize: 'none' }} placeholder="Short description…" />
+          </div>
+
           <div style={{ display: 'flex', gap: 10, marginTop: '1.125rem' }}>
             <button onClick={handleSave} disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : editId ? 'Update Product' : 'Add Product'}</button>
             <button onClick={() => { setShowForm(false); setEditId(null); setForm(empty) }} className="btn btn-ghost">Cancel</button>
@@ -133,14 +150,14 @@ export default function ProductsPage() {
           <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--surface)' }}>
-                {['Name', 'SKU', 'Category', 'Price', 'Stock', ''].map(h => (
-                  <th key={h} style={{ padding: '0.75rem 1.25rem', textAlign: 'left', fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                {['', 'Name', 'SKU', 'Category', 'Price', 'Stock', ''].map((h, i) => (
+                  <th key={i} style={{ padding: '0.75rem 1.25rem', textAlign: 'left', fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)' }}>
+                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-3)' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                     <Package size={32} strokeWidth={1.5} />
                     {products.length === 0 ? 'No products yet — click Add Product or seed the menu from Dashboard' : 'No matches'}
@@ -149,6 +166,14 @@ export default function ProductsPage() {
               )}
               {filtered.map((p, i) => (
                 <tr key={p.id} style={{ borderTop: '1px solid var(--border)', background: i % 2 ? 'var(--surface)' : '#fff' }}>
+                  <td style={{ padding: '0.6rem 0.75rem 0.6rem 1.25rem' }}>
+                    {/* Thumbnail — fixed 40x40 square, cropped consistently */}
+                    <div style={{ width: 40, height: 40, borderRadius: 9, overflow: 'hidden', background: 'var(--surface)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {p.image_url
+                        ? <img src={p.image_url} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <ImageOff size={16} color="var(--text-3)" />}
+                    </div>
+                  </td>
                   <td style={{ padding: '0.75rem 1.25rem', fontWeight: 700, color: 'var(--text-1)' }}>{p.name}</td>
                   <td style={{ padding: '0.75rem 1.25rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-3)' }}>{p.sku}</td>
                   <td style={{ padding: '0.75rem 1.25rem', color: 'var(--text-2)' }}>{categories.find(c => c.id === p.category_id)?.name ?? '—'}</td>

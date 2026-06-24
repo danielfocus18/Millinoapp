@@ -83,6 +83,8 @@ UPDATE public.order_items SET line_total = unit_price * quantity WHERE line_tota
 
 ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_available boolean DEFAULT true;
 UPDATE public.products SET is_available = true WHERE is_available IS NULL;
+
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS image_url text;
     `.trim()
   })
 }
